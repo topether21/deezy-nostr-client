@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig/node16.json",
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"],
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "outDir": "dist",
+    "baseUrl": "./src",
+    "rootDir": "./src",
+    "paths": {}
+  }
+}
