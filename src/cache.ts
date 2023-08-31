@@ -83,6 +83,8 @@ export const clearAllLists = async () => {
 (async () => {
   await db.connect();
 
+  await clearAllLists();
+
   const { openOrders$ } = subscribe(MIN_NON_TEXT_ITEMS);
 
   let previousOrders: NosftEvent[] = [];
