@@ -1,0 +1,24 @@
+version: '3'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '${PORT}:${PORT}'
+    environment:
+      MICROSERVICE_KEY: '${MICROSERVICE_KEY}'
+      HOSTNAME: '${HOSTNAME}'
+      PORT: '${PORT}'
+      REDIS_HOST: 'redis'
+      REDIS_PORT: '6379'
+      REDIS_TYPE: 'internal'
+    depends_on:
+      - redis
+
+  redis:
+    image: 'redis:latest'
+    environment:
+      REDIS_PASSWORD: '${REDIS_PASSWORD}'
+    ports:
+      - '19678:6379' # Access the Redis instance on your host

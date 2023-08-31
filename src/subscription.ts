@@ -1,39 +1,13 @@
-import { Subject, Subscription } from 'rxjs';
+import { Subject, BehaviorSubject, Subscription } from 'rxjs';
 import { scan } from 'rxjs/operators';
+import { isSpent, getInscription, takeLatestInscription } from './services/nosft';
+import { nostrPool } from './nostr-relay';
+import { NosftEvent } from './types';
 
-// Mock-up of your existing services
-const getInscription = async (inscriptionId: string) => {
-  // Simulate an API call to get Inscription
-  return {
-    inscription: {
-      // Your inscription object
-    },
-  };
-};
-
-const isSpent = async (inscription: any) => {
-  // Simulate an API call to check if inscription is spent
-  return {
-    spent: false,
-  };
-};
-
-const nostrPool = {
-  subscribeOrders: (params: any) => {
-    // Simulate an API subscription
-    // Should be replaced with your real subscription
-    return new Subject();
-  },
-};
-
-const MAX_ONSALE = 200;
-
-const updateInscriptions = (acc: any[], curr: any) => {
+export const updateInscriptions = (maxOnSale: number) => (acc: NosftEvent[], curr: NosftEvent) => {
   const existingIndex = acc.findIndex((item) => item.inscriptionId === curr.inscriptionId && item.num === curr.num);
 
   if (existingIndex !== -1) {
-    // Assuming takeLatestInscription is a function that takes two inscriptions
-    // and returns a boolean indicating if the second should replace the first
     if (takeLatestInscription(acc[existingIndex], curr)) {
       acc[existingIndex] = curr;
     }
@@ -41,68 +15,53 @@ const updateInscriptions = (acc: any[], curr: any) => {
     acc.push(curr);
   }
 
-  return acc.sort((a, b) => b.created_at - a.created_at).slice(0, MAX_ONSALE);
+  return acc.sort((a, b) => b.created_at - a.created_at).slice(0, maxOnSale);
 };
 
-const takeLatestInscription = (a: any, b: any) => {
-  // Your implementation here
-  return true;
+const getInscriptionData = async (event: any) => {
+  const { inscription } = await getInscription(event.inscriptionId);
+  return {
+    ...inscription,
+    ...event,
+  };
 };
 
-const main = () => {
-  let openOrders: any[] = [];
-  const addOpenOrder$ = new Subject();
-  let orderSubscription: Subscription;
+export const subscribe = (maxOnSale: number = 100) => {
+  const openOrders: NosftEvent[] = [];
+  const openOrdersSubject = new BehaviorSubject<NosftEvent[]>([]);
+  const addOpenOrder$ = new Subject<NosftEvent>();
   let addSubscription: Subscription;
-  let utxosReady = false;
+  let orderSubscription: Subscription;
 
-  const addNewOpenOrder = (order: any) => {
-    addOpenOrder$.next(order);
-    if (!utxosReady) {
-      utxosReady = true;
-    }
-  };
-
-  const getInscriptionData = async (event: any) => {
-    const { inscription } = await getInscription(event.inscriptionId);
-    return {
-      ...inscription,
-      ...event,
-    };
-  };
-
-  addSubscription = addOpenOrder$.pipe(scan(updateInscriptions, openOrders)).subscribe((newOrders) => {
-    openOrders = newOrders;
+  addSubscription = addOpenOrder$.pipe(scan(updateInscriptions(maxOnSale), openOrders)).subscribe((newOrders) => {
+    openOrders.length = 0;
+    openOrders.push(...newOrders);
+    openOrdersSubject.next(openOrders);
   });
 
-  orderSubscription = nostrPool
-    .subscribeOrders({ limit: MAX_ONSALE, type: 'some_type', address: 'some_address' })
-    .subscribe(async (event) => {
-      try {
-        const inscription = await getInscriptionData(event);
-        const isSpentUtxo = await isSpent(inscription);
-        if (isSpentUtxo.spent) {
-          console.log('utxo is spent', inscription);
-          return;
-        }
-        addNewOpenOrder(inscription);
-      } catch (error) {
-        console.error(error);
-      }
-    });
-
-  // Cleanup
-  return () => {
+  orderSubscription = nostrPool.subscribeOrders({ limit: maxOnSale }).subscribe(async (event) => {
     try {
-      orderSubscription.unsubscribe();
-      addSubscription.unsubscribe();
-    } catch (err) {
-      console.error(err);
+      const inscription = await getInscriptionData(event);
+      const isSpentUtxo = await isSpent(inscription);
+      if (isSpentUtxo.spent) {
+        console.log('utxo is spent', inscription);
+        return;
+      }
+      addOpenOrder$.next(inscription);
+    } catch (error) {
+      console.error(error);
     }
+  });
+
+  return {
+    cleanup: () => {
+      try {
+        orderSubscription.unsubscribe();
+        addSubscription.unsubscribe();
+      } catch (err) {
+        console.error(err);
+      }
+    },
+    openOrders$: openOrdersSubject.asObservable(),
   };
 };
-
-const cleanup = main();
-
-// Cleanup resources when needed
-// cleanup();

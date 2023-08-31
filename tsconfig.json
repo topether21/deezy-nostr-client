@@ -1,12 +1,22 @@
 {
-  "extends": "./tsconfig/node16.json",
   "include": ["src/**/*"],
   "exclude": ["node_modules"],
   "compilerOptions": {
-    "esModuleInterop": true,
-    "outDir": "dist",
     "baseUrl": "./src",
-    "rootDir": "./src",
-    "paths": {}
+    "paths": {
+      "@/*": ["/*"]
+    },
+    "outDir": "./dist",
+    "declaration": true,
+    "types": ["node"],
+    "allowJs": false,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ESNext",
+    "module": "nodenext",
+    "moduleResolution": "node",
+    "esModuleInterop": true
   }
 }
