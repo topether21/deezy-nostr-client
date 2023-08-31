@@ -15,7 +15,7 @@ const redisConfig = {
 
 const db = createClient(redisConfig);
 
-const MIN_NON_TEXT_ITEMS = 100;
+export const MIN_NON_TEXT_ITEMS = process.env.MIN_QUEUE_SIZE ? parseInt(process.env.MIN_QUEUE_SIZE) : 800;
 
 export const addItem = async (item: NosftEvent) => {
   const keys = {
@@ -83,7 +83,7 @@ export const clearAllLists = async () => {
 (async () => {
   await db.connect();
 
-  const { openOrders$ } = subscribe(300);
+  const { openOrders$ } = subscribe(MIN_NON_TEXT_ITEMS);
 
   let previousOrders: NosftEvent[] = [];
 

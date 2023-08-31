@@ -1,0 +1,12 @@
+{
+  "Cpu": "1 vCPU",
+  "Memory": "2 GB",
+  "EnvironmentVariables": [
+    { "Name": "MICROSERVICE_KEY", "Value": "ABC" },
+    { "Name": "REDIS_HOST", "Value": "redis-19678.c238.us-central1-2.gce.cloud.redislabs.com" },
+    { "Name": "REDIS_PORT", "Value": "19678" },
+    { "Name": "REDIS_TYPE", "Value": "external" },
+    { "Name": "REDIS_PASSWORD", "Value": "SJyufONlCGmuQgF8QAGEtuthqtc07LXH" },
+    { "Name": "PORT", "Value": "3000" }
+  ]
+}
