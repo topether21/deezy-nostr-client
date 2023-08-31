@@ -5,14 +5,20 @@ import { Response } from 'express';
 import * as http from 'http';
 import routes from './routes';
 import './cache';
+import { Server as IOServer } from 'socket.io';
+import { setupSocketServer } from './sockets';
 
-app.use(
-  cors({
-    origin: '*', // TODO: restrict to only a specific domains in production
-  })
-);
+app.use(cors());
 
 const server = http.createServer(app);
+
+const io = new IOServer(server, {
+  cors: {
+    origin: '*',
+  },
+});
+
+setupSocketServer(io);
 
 app.get('/status', (_, res: Response) => {
   res.send({
