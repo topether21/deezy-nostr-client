@@ -1,15 +1,10 @@
 import 'websocket-polyfill';
 import { Nosft } from 'nosft-core';
 
-interface INosft {
-  nostr: {
-    subscribeOrders: Function;
-    unsubscribeOrders: Function;
-  };
-}
+const nosft = Nosft();
 
-const nosft: INosft = Nosft();
-
+const { isSpent } = nosft.utxo;
 const { subscribeOrders, unsubscribeOrders } = nosft.nostr;
+const { getInscription, takeLatestInscription, isTextInscription } = nosft.inscriptions;
 
-export { subscribeOrders, unsubscribeOrders };
+export { subscribeOrders, unsubscribeOrders, isSpent, getInscription, takeLatestInscription, isTextInscription };

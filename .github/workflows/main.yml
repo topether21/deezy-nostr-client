@@ -1,0 +1,38 @@
+name: Deploy to AWS App Runner
+
+on:
+  push:
+    branches:
+      - main # Set a branch to deploy from
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      # Setup AWS CLI
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      # Build and push Docker image to ECR
+      - name: Build and push Docker image
+        run: |
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 729989983411.dkr.ecr.us-east-1.amazonaws.com
+          docker build -t deezy-nostr-client .
+          docker tag deezy-nostr-client:latest 729989983411.dkr.ecr.us-east-1.amazonaws.com/deezy-nostr-client:latest
+          docker push 729989983411.dkr.ecr.us-east-1.amazonaws.com/deezy-nostr-client:latest
+
+      # Deploy to App Runner
+      - name: Deploy to AWS App Runner
+        run: |
+          aws apprunner create-service \
+            --service-name your-service-name \
+            --source-configuration "RepositoryUrl=729989983411.dkr.ecr.us-east-1.amazonaws.com/your-app-name,ImageTag=latest" \
+            --environment "PORT=3000,MICROSERVICE_KEY=ABC,REDIS_HOST=redis-19678.c238.us-central1-2.gce.cloud.redislabs.com,REDIS_PORT=19678,REDIS_TYPE=external,REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}"

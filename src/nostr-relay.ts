@@ -1,5 +1,4 @@
 import { Observable, Observer } from 'rxjs';
-
 import { subscribeOrders as subscribeNosftOrders, unsubscribeOrders } from './services/nosft';
 
 type SubscribeOrders = {
@@ -32,6 +31,7 @@ const Nostr = function (): NostrModule {
           nostrModule.subscriptionOrders = subscribeNosftOrders({
             callback: orderEvent,
             limit,
+            filter: [],
           }) as { unsub?: () => void };
         } catch (error: any) {
           observer.error(error);
