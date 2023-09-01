@@ -1,4 +1,4 @@
-import { MIN_NON_TEXT_ITEMS, fetchTopMarketplaceItems } from './cache';
+import { fetchTopMarketplaceItems } from './cache';
 import express, { Router, Request, Response } from 'express';
 
 const router: Router = express.Router();
@@ -35,9 +35,7 @@ router.get('/top-10-sales', async (req: Request, res: Response) => {
 
     console.log('New client connected');
 
-    const top10Sales = (await fetchTopMarketplaceItems('sorted_by_created_at_all', MIN_NON_TEXT_ITEMS))
-      .reverse()
-      .slice(0, 10);
+    const top10Sales = await fetchTopMarketplaceItems('sorted_by_created_at_all', 'DESC', 10);
 
     // Push the initial set of top-10 sales
     res.write(`data: ${JSON.stringify(top10Sales)}\n\n`);
@@ -45,9 +43,8 @@ router.get('/top-10-sales', async (req: Request, res: Response) => {
     // Push updates whenever the top-10 sales change.
     const interval = setInterval(async () => {
       try {
-        const currentTop10Sales = (await fetchTopMarketplaceItems('sorted_by_created_at_all', MIN_NON_TEXT_ITEMS))
-          .reverse()
-          .slice(0, 10);
+        const currentTop10Sales = await fetchTopMarketplaceItems('sorted_by_created_at_all', 'DESC', 10);
+
         res.write(`data: ${JSON.stringify(currentTop10Sales)}\n\n`);
       } catch (innerErr) {
         console.error('Failed to fetch or send top 10 sales:', innerErr);

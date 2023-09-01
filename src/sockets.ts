@@ -7,7 +7,7 @@ export const setupSocketServer = (io: Server) => {
 
     const sendUpdates = async () => {
       try {
-        const salesData = await fetchTopMarketplaceItems('sorted_by_created_at_all', 'DESC', 10);
+        const salesData = await fetchTopMarketplaceItems('sorted_by_created_at_no_text', 'DESC', 10);
         console.log('Fetched sales data:', salesData.length);
         io.to('onSale').emit('update', { channel: 'onSale', payload: salesData });
       } catch (error) {
