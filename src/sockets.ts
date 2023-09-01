@@ -1,11 +1,12 @@
 import { Server, Socket } from 'socket.io';
-import { fetchTopMarketplaceItems, sub } from './cache'; // Adjust imports
+import { fetchTopMarketplaceItems, sub } from './cache';
 
 export const setupSocketServer = async (io: Server) => {
-  const listener = async (_message: string, _channel: string) => {
+  const listener = async (message: string, channel: string) => {
     try {
-      const salesData = await fetchTopMarketplaceItems('sorted_by_created_at_no_text', 'DESC', 10);
-      io.to('onSale').emit('update', { channel: 'onSale', payload: salesData });
+      console.log('[Subscriber]... getting updates', { message, channel });
+      const salesData = await fetchTopMarketplaceItems('sorted_by_created_at_no_text', 'DESC');
+      io.to('onSale').emit('update', { channel: 'onSale', payload: salesData, operation: message });
     } catch (error) {
       console.error('Failed to fetch or send updates:', error);
     }
@@ -20,7 +21,7 @@ export const setupSocketServer = async (io: Server) => {
       try {
         const salesData = await fetchTopMarketplaceItems('sorted_by_created_at_no_text', 'DESC', 10);
         console.log('Fetched sales data:', salesData.length);
-        io.to('onSale').emit('update', { channel: 'onSale', payload: salesData });
+        io.to('onSale').emit('update', { channel: 'onSale', payload: salesData, operation: 'start' });
       } catch (error) {
         console.error('Failed to fetch or send updates:', error);
       }

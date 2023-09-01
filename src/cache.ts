@@ -66,7 +66,8 @@ export const addItem = async (item: NosftEvent) => {
           },
         ]);
 
-        pub.publish('update_sets', 'update');
+        pub.publish('update_sets', 'add');
+        console.log('Published [add] event to update_sets');
 
         // Check for max capacity and remove the oldest item if needed
         const setSize = await db.zCount(key, '-inf', '+inf');
@@ -74,7 +75,8 @@ export const addItem = async (item: NosftEvent) => {
           const oldestItems = await db.zRange(key, 0, 0);
           if (oldestItems.length > 0) {
             await db.zRem(key, oldestItems[0]);
-            pub.publish('update_sets', 'update');
+            pub.publish('update_sets', 'remove');
+            console.log('Published [remove] event to update_sets');
           }
         }
       }
@@ -143,12 +145,12 @@ export const clearAllLists = async () => {
   }
 };
 
-(async () => {
+export const initCache = async () => {
   await Promise.all([pub.connect(), sub.connect(), db.connect()]);
 
   await clearAllLists();
 
   subscribe(MIN_NON_TEXT_ITEMS);
-})();
+};
 
 export {};

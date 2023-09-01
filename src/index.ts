@@ -5,9 +5,9 @@ import { Response } from 'express';
 import * as http from 'http';
 import routes from './routes';
 import admin from './queues/bull-board';
-import './cache';
 import { Server as IOServer } from 'socket.io';
 import { setupSocketServer } from './sockets';
+import { initCache } from './cache';
 
 app.use(cors());
 
@@ -19,8 +19,6 @@ const io = new IOServer(server, {
   },
 });
 
-setupSocketServer(io);
-
 app.get('/status', (_, res: Response) => {
   res.send({
     status: 'ok',
@@ -31,6 +29,11 @@ app.use('/', routes);
 
 app.use('/admin/queues', admin);
 
-server.listen(config.port, config.hostname, async () => {
-  console.log(`Server running at http://${config.hostname}:${config.port}`);
-});
+(async () => {
+  await initCache();
+  await setupSocketServer(io);
+
+  server.listen(config.port, config.hostname, async () => {
+    console.log(`Server running at http://${config.hostname}:${config.port}`);
+  });
+})();
