@@ -4,6 +4,7 @@ import cors from 'cors';
 import { Response } from 'express';
 import * as http from 'http';
 import routes from './routes';
+import admin from './queues/bull-board';
 import './cache';
 import { Server as IOServer } from 'socket.io';
 import { setupSocketServer } from './sockets';
@@ -27,6 +28,8 @@ app.get('/status', (_, res: Response) => {
 });
 
 app.use('/', routes);
+
+app.use('/admin/queues', admin);
 
 server.listen(config.port, config.hostname, async () => {
   console.log(`Server running at http://${config.hostname}:${config.port}`);

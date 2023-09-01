@@ -26,7 +26,7 @@ export interface Config {
 export const config: Config = {
   minThreads: Math.max(cpuCount / 2, 1),
   maxThreads: cpuCount * 1.5,
-  prefix: env.get('BITCASH_PREFIX').asString() || 'Dev:',
+  prefix: env.get('BITCASH_PREFIX').asString() || '',
   redisType: env.get('REDIS_TYPE').asString() || 'local',
   redisHost: env.get('REDIS_HOST').asString() || '',
   redisPort: env.get('REDIS_PORT').asIntPositive() || 19678,

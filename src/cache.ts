@@ -1,3 +1,4 @@
+// https://github.com/microsoft/TypeScript/issues/47663#issuecomment-1519138189
 import { createClient } from 'redis';
 import { isTextInscription } from './services/nosft';
 import { subscribe } from './subscription';
@@ -15,8 +16,17 @@ const redisConfig = {
 
 const db = createClient(redisConfig);
 
+const pub = db.duplicate();
+const sub = db.duplicate();
+
+export { pub, sub };
+
 export const MAX_CAPACITY = process.env.MAX_CAPACITY ? parseInt(process.env.MAX_CAPACITY) : 10;
 export const MIN_NON_TEXT_ITEMS = process.env.MIN_NON_TEXT_ITEMS ? parseInt(process.env.MIN_NON_TEXT_ITEMS) : 5;
+
+const takeLatestInscription = (itemA: NosftEvent, itemB: NosftEvent): boolean => {
+  return itemA.created_at >= itemB.created_at;
+};
 
 export const addItem = async (item: NosftEvent) => {
   const keys = {
@@ -30,19 +40,42 @@ export const addItem = async (item: NosftEvent) => {
 
   for (const [key, score] of Object.entries(keys)) {
     if (score !== null) {
-      await db.zAdd(key, [
-        {
-          score: parseInt(score.toString()),
-          value: JSON.stringify(item),
-        },
-      ]);
+      // Check for existing items with the same inscriptionId and num
+      const existingItems = await db.zRange(key, 0, -1);
+      let shouldAdd = true;
 
-      // Check for max capacity and remove the oldest item if needed
-      const setSize = await db.zCount(key, '-inf', '+inf');
-      if (setSize > MAX_CAPACITY) {
-        const oldestItems = await db.zRange(key, 0, 0); // Fetch the oldest item
-        if (oldestItems.length > 0) {
-          await db.zRem(key, oldestItems[0]); // Remove the oldest item
+      for (const existingItem of existingItems) {
+        const parsedItem = JSON.parse(existingItem);
+        if (parsedItem.inscriptionId === item.inscriptionId && parsedItem.num === item.num) {
+          if (takeLatestInscription(parsedItem, item)) {
+            shouldAdd = false;
+            break;
+          } else {
+            // Remove existing older item
+            await db.zRem(key, existingItem);
+          }
+        }
+      }
+
+      if (shouldAdd) {
+        // Add new item
+        await db.zAdd(key, [
+          {
+            score: parseInt(score.toString()),
+            value: JSON.stringify(item),
+          },
+        ]);
+
+        pub.publish('update_sets', 'update');
+
+        // Check for max capacity and remove the oldest item if needed
+        const setSize = await db.zCount(key, '-inf', '+inf');
+        if (setSize > MAX_CAPACITY) {
+          const oldestItems = await db.zRange(key, 0, 0);
+          if (oldestItems.length > 0) {
+            await db.zRem(key, oldestItems[0]);
+            pub.publish('update_sets', 'update');
+          }
         }
       }
     }
@@ -111,43 +144,11 @@ export const clearAllLists = async () => {
 };
 
 (async () => {
-  await db.connect();
+  await Promise.all([pub.connect(), sub.connect(), db.connect()]);
 
   await clearAllLists();
 
-  const { openOrders$ } = subscribe(MIN_NON_TEXT_ITEMS);
-
-  let previousOrders: NosftEvent[] = [];
-
-  openOrders$.subscribe({
-    next: async (currentOrders) => {
-      // Print the total number of open orders
-      console.log('openOrders', currentOrders.length);
-
-      if (!currentOrders.length) {
-        return;
-      }
-
-      // Find the orders that are new
-      const newOrders = currentOrders.filter(
-        (order) => !previousOrders.some((prevOrder) => prevOrder.inscriptionId === order.inscriptionId)
-      );
-
-      Promise.all(
-        newOrders.map(async (newOrder) => {
-          console.log('Newly added order:', newOrder.inscriptionId);
-          await addItem(newOrder);
-        })
-      ).catch((error) => {
-        console.error('An error occurred during processing:', error);
-      });
-
-      previousOrders = [...currentOrders];
-    },
-    error: (error) => {
-      console.error('An error occurred:', error);
-    },
-  });
+  subscribe(MIN_NON_TEXT_ITEMS);
 })();
 
 export {};

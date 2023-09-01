@@ -1,7 +1,18 @@
 import { Server, Socket } from 'socket.io';
-import { fetchTopMarketplaceItems } from './cache'; // Adjust imports
+import { fetchTopMarketplaceItems, sub } from './cache'; // Adjust imports
 
-export const setupSocketServer = (io: Server) => {
+export const setupSocketServer = async (io: Server) => {
+  const listener = async (_message: string, _channel: string) => {
+    try {
+      const salesData = await fetchTopMarketplaceItems('sorted_by_created_at_no_text', 'DESC', 10);
+      io.to('onSale').emit('update', { channel: 'onSale', payload: salesData });
+    } catch (error) {
+      console.error('Failed to fetch or send updates:', error);
+    }
+  };
+
+  await sub.subscribe('update_sets', listener);
+
   io.on('connection', (socket: Socket) => {
     console.log('New client connected:', socket.id);
 
@@ -18,7 +29,7 @@ export const setupSocketServer = (io: Server) => {
     socket.on('joinChannel', (channel: string) => {
       console.log(`Client ${socket.id} joined channel ${channel}`);
       socket.join(channel);
-      sendUpdates();
+      sendUpdates(); // send current list of items from redis
     });
 
     socket.on('leaveChannel', (channel: string) => {
