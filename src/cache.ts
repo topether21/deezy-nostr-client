@@ -115,21 +115,20 @@ export const addOnSaleItem = async (item: NosftEvent) => {
 
   for (const [key, score] of Object.entries(keys)) {
     if (score !== null) {
-      // Check for existing items with the same inscriptionId and num
-      const existingItems = await db.zRange(key, 0, -1);
+      // Check for existing item with the same output
+      const existingItemScore = await db.hGet(key + '_hash', item.output);
       let shouldAdd = true;
 
-      for (const existingItem of existingItems) {
-        const parsedItem = JSON.parse(existingItem);
-        if (parsedItem.output === item.output) {
-          if (takeLatestInscription(parsedItem, item)) {
-            shouldAdd = false;
-            break;
-          } else {
-            // Remove existing older item
-            await db.zRem(key, existingItem);
-            isRemoved = true; // Set the flag to true
-          }
+      if (existingItemScore) {
+        const existingItem = await db.zRangeByScore(key, existingItemScore, existingItemScore);
+        const parsedItem = JSON.parse(existingItem[0]);
+        if (takeLatestInscription(parsedItem, item)) {
+          shouldAdd = false;
+        } else {
+          // Remove existing older item
+          await db.zRem(key, existingItem[0]);
+          await db.hDel(key + '_hash', item.output);
+          isRemoved = true; // Set the flag to true
         }
       }
 
@@ -141,6 +140,7 @@ export const addOnSaleItem = async (item: NosftEvent) => {
             value: JSON.stringify(item),
           },
         ]);
+        await db.hSet(key + '_hash', item.output, score.toString());
 
         isAdded = true; // Set the flag to true
 
@@ -149,7 +149,9 @@ export const addOnSaleItem = async (item: NosftEvent) => {
         if (setSize > MAX_CAPACITY) {
           const oldestItems = await db.zRange(key, 0, 0);
           if (oldestItems.length > 0) {
+            const oldestItem = JSON.parse(oldestItems[0]);
             await db.zRem(key, oldestItems[0]);
+            await db.hDel(key + '_hash', oldestItem.output);
             isRemoved = true; // Set the flag to true
           }
         }
@@ -183,6 +185,7 @@ export const keys = ['sorted_by_created_at_all', 'sorted_by_created_at_no_text']
 export const removeItem = async (item: NosftEvent) => {
   for (const key of keys) {
     await db.zRem(key, JSON.stringify(item));
+    await db.hDel(key + '_hash', item.output);
   }
 
   const nonTextCount = await db.zCount('sorted_by_created_at_no_text', '-inf', '+inf');

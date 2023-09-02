@@ -2,7 +2,7 @@ import { nostrPool } from './nostr-relay';
 import { getAuctions } from './services/nosft';
 import { nostrConfig, nostrQueue } from './queues/nostr';
 import cron from 'node-cron';
-import { db, pub, sub, updateAuctions } from './cache';
+import { clearAllLists, db, pub, sub, updateAuctions } from './cache';
 import { MIN_NON_TEXT_ITEMS } from './config';
 import { Auction } from 'types';
 
@@ -46,7 +46,7 @@ export const subscribeToOnAuctions = () => {
 export const initCache = async () => {
   await Promise.all([pub.connect(), sub.connect(), db.connect()]);
 
-  // await clearAllLists();
+  await clearAllLists();
 
   subscribeToOnSale(MIN_NON_TEXT_ITEMS);
   subscribeToOnAuctions();
