@@ -24,6 +24,29 @@ export const buildInscription = async (event: RawNostrEvent): Promise<NosftEvent
   }
 };
 
+// Queue for adding on sale item
+export const addOnSaleQueue = new Queue(`${config.prefix}AddOnSale`, {
+  connection,
+});
+
+export const addOnSaleWorker = new Worker(
+  addOnSaleQueue.name,
+  async ({ data }: Job<NosftEvent>) => {
+    if (!data) return;
+
+    await addOnSaleItem(data);
+
+    return {
+      status: 'ok',
+      ...data,
+    };
+  },
+  {
+    concurrency: 1,
+    connection,
+  }
+);
+
 export const nostrWorker = new Worker(
   nostrQueue.name,
   async ({ data, name, id }: Job<RawNostrEvent>) => {
@@ -32,7 +55,7 @@ export const nostrWorker = new Worker(
 
     if (!inscription) return;
 
-    await addOnSaleItem(inscription);
+    await addOnSaleQueue.add(addOnSaleQueue.name, inscription);
 
     return {
       status: 'ok',
@@ -40,7 +63,7 @@ export const nostrWorker = new Worker(
     };
   },
   {
-    concurrency: 1,
+    concurrency: 10,
     connection,
   }
 );
