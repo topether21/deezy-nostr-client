@@ -24,13 +24,7 @@ export type NosftEvent = {
   tags: Tag[];
 };
 
-export type ValidKeys =
-  | 'sorted_by_value_all'
-  | 'sorted_by_value_no_text'
-  | 'sorted_by_created_at_all'
-  | 'sorted_by_created_at_no_text'
-  | 'sorted_by_num_all'
-  | 'sorted_by_num_no_text';
+export type ValidKeys = 'sorted_by_created_at_all' | 'sorted_by_created_at_no_text';
 
 export type ValidOrders = 'ASC' | 'DESC';
 

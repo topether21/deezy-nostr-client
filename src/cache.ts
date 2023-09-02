@@ -24,10 +24,6 @@ const sub = db.duplicate();
 
 export { pub, sub };
 
-const takeLatestInscription = (itemA: NosftEvent, itemB: NosftEvent): boolean => {
-  return itemA.created_at >= itemB.created_at;
-};
-
 // Function to generate a hash of a list of auctions
 const generateHash = (auctions: { score: number; value: string }[]) => {
   const auctionsString = JSON.stringify(auctions);
@@ -104,14 +100,14 @@ export const updateAuctions = async (auctions: Auction[]) => {
   }
 };
 
+const takeLatestInscription = (itemA: NosftEvent, itemB: NosftEvent): boolean => {
+  return itemA.created_at >= itemB.created_at;
+};
+
 export const addOnSaleItem = async (item: NosftEvent) => {
   const keys = {
-    sorted_by_value_all: item.value,
-    sorted_by_value_no_text: isTextInscription(item) ? null : item.value,
     sorted_by_created_at_all: item.created_at,
     sorted_by_created_at_no_text: isTextInscription(item) ? null : item.created_at,
-    sorted_by_num_all: item.num,
-    sorted_by_num_no_text: isTextInscription(item) ? null : item.num,
   };
 
   let isAdded = false; // Flag for added item
@@ -125,7 +121,7 @@ export const addOnSaleItem = async (item: NosftEvent) => {
 
       for (const existingItem of existingItems) {
         const parsedItem = JSON.parse(existingItem);
-        if (parsedItem.inscriptionId === item.inscriptionId && parsedItem.num === item.num) {
+        if (parsedItem.output === item.output) {
           if (takeLatestInscription(parsedItem, item)) {
             shouldAdd = false;
             break;
@@ -174,7 +170,7 @@ export const addOnSaleItem = async (item: NosftEvent) => {
   }
 
   // Existing code to check nonTextCount and possibly load more items
-  const nonTextCount = await db.zCount('sorted_by_value_no_text', '-inf', '+inf');
+  const nonTextCount = await db.zCount('sorted_by_created_at_no_text', '-inf', '+inf');
   if (nonTextCount < MIN_NON_TEXT_ITEMS) {
     loadMoreItems();
   }
@@ -182,21 +178,14 @@ export const addOnSaleItem = async (item: NosftEvent) => {
 
 export const validOrders = ['ASC', 'DESC'];
 
-export const keys = [
-  'sorted_by_value_all',
-  'sorted_by_value_no_text',
-  'sorted_by_created_at_all',
-  'sorted_by_created_at_no_text',
-  'sorted_by_num_all',
-  'sorted_by_num_no_text',
-];
+export const keys = ['sorted_by_created_at_all', 'sorted_by_created_at_no_text'];
 
 export const removeItem = async (item: NosftEvent) => {
   for (const key of keys) {
     await db.zRem(key, JSON.stringify(item));
   }
 
-  const nonTextCount = await db.zCount('sorted_by_value_no_text', '-inf', '+inf');
+  const nonTextCount = await db.zCount('sorted_by_created_at_no_text', '-inf', '+inf');
   if (nonTextCount < MIN_NON_TEXT_ITEMS) {
     loadMoreItems();
   }

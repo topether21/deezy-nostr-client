@@ -2,14 +2,16 @@ import { nostrPool } from './nostr-relay';
 import { getAuctions } from './services/nosft';
 import { nostrConfig, nostrQueue } from './queues/nostr';
 import cron from 'node-cron';
-import { clearAllLists, db, pub, sub, updateAuctions } from './cache';
+import { db, pub, sub, updateAuctions } from './cache';
 import { MIN_NON_TEXT_ITEMS } from './config';
 import { Auction } from 'types';
 
 export const subscribeToOnSale = (maxOnSale: number = 100) => {
   const orderSubscription = nostrPool.subscribeOrders({ limit: maxOnSale }).subscribe(async (event) => {
     try {
-      nostrQueue.add(nostrConfig.name, event, {}); // jobId: event.id
+      nostrQueue.add(nostrConfig.name, event, {
+        jobId: event.id,
+      });
     } catch (error) {
       console.error(error);
     }
@@ -44,7 +46,7 @@ export const subscribeToOnAuctions = () => {
 export const initCache = async () => {
   await Promise.all([pub.connect(), sub.connect(), db.connect()]);
 
-  await clearAllLists();
+  // await clearAllLists();
 
   subscribeToOnSale(MIN_NON_TEXT_ITEMS);
   subscribeToOnAuctions();
