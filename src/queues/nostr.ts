@@ -40,7 +40,7 @@ export const nostrWorker = new Worker(
     };
   },
   {
-    concurrency: config.maxThreads * 5,
+    concurrency: 1,
     connection,
   }
 );
