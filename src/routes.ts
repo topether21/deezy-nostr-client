@@ -1,6 +1,7 @@
 import { ValidKeys, ValidOrders } from './types';
-import { MIN_NON_TEXT_ITEMS, clearAllLists, fetchTopMarketplaceItems, keys as validKeys, validOrders } from './cache';
+import { clearAllLists, fetchTopAuctionItems, fetchTopMarketplaceItems, keys as validKeys, validOrders } from './cache';
 import express, { Router, Request, Response } from 'express';
+import { MIN_NON_TEXT_ITEMS } from './config';
 
 const router: Router = express.Router();
 
@@ -29,6 +30,19 @@ router.get('/api/v1/marketplace', async (req: Request, res: Response) => {
       size: marketplace.length,
       maxQueueSize: MIN_NON_TEXT_ITEMS,
       marketplace,
+    });
+  } catch (e) {
+    console.error('[/api/v1/marketplace][error]', e);
+    res.sendStatus(500);
+  }
+});
+
+router.get('/api/v1/auctions', async (_req: Request, res: Response) => {
+  try {
+    const auctions = await fetchTopAuctionItems();
+    res.send({
+      status: 'ok',
+      auctions,
     });
   } catch (e) {
     console.error('[/api/v1/marketplace][error]', e);

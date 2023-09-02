@@ -1,10 +1,15 @@
 import { nostrPool } from './nostr-relay';
+import { getAuctions } from './services/nosft';
 import { nostrConfig, nostrQueue } from './queues/nostr';
+import cron from 'node-cron';
+import { clearAllLists, db, pub, sub, updateAuctions } from './cache';
+import { MIN_NON_TEXT_ITEMS } from './config';
+import { Auction } from 'types';
 
-export const subscribe = (maxOnSale: number = 100) => {
+export const subscribeToOnSale = (maxOnSale: number = 100) => {
   const orderSubscription = nostrPool.subscribeOrders({ limit: maxOnSale }).subscribe(async (event) => {
     try {
-      nostrQueue.add(nostrConfig.name, event, { jobId: event.id });
+      nostrQueue.add(nostrConfig.name, event, {}); // jobId: event.id
     } catch (error) {
       console.error(error);
     }
@@ -19,4 +24,28 @@ export const subscribe = (maxOnSale: number = 100) => {
       }
     },
   };
+};
+
+export const subscribeToOnAuctions = () => {
+  const cronJob = async () => {
+    try {
+      const auctions = (await getAuctions()).filter((a) => a.status === 'RUNNING') as Auction[];
+      await updateAuctions(auctions);
+      console.log('Auctions:', auctions.length);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+  // create a cron job to fetch auctions every 10 seconds
+  cron.schedule('*/15 * * * * *', cronJob);
+  cronJob();
+};
+
+export const initCache = async () => {
+  await Promise.all([pub.connect(), sub.connect(), db.connect()]);
+
+  await clearAllLists();
+
+  subscribeToOnSale(MIN_NON_TEXT_ITEMS);
+  subscribeToOnAuctions();
 };

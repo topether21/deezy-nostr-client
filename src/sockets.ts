@@ -1,39 +1,55 @@
 import { Server, Socket } from 'socket.io';
-import { fetchTopMarketplaceItems, sub } from './cache';
+import { fetchTopAuctionItems, fetchTopMarketplaceItems, sub } from './cache';
+
+export type CHANNELS = 'onSale:10' | 'onAuction:10';
+
+interface UpdatePayload {
+  channel: CHANNELS;
+  payload: any;
+  operation: string;
+}
+
+const sendMessageToChannel = async (io: Server, channel: CHANNELS, operation: string) => {
+  let data;
+  const [channelName, numItems] = channel.split(':');
+
+  const limit = numItems ? parseInt(numItems) : undefined;
+
+  if (channelName === 'onAuction') {
+    data = await fetchTopAuctionItems('DESC', limit);
+  } else if (channelName === 'onSale') {
+    data = await fetchTopMarketplaceItems('sorted_by_created_at_no_text', 'DESC', limit);
+  }
+
+  const payload: UpdatePayload = { channel: channelName as CHANNELS, payload: data, operation };
+  io.to(channel).emit('update', payload);
+};
 
 export const setupSocketServer = async (io: Server) => {
-  const listener = async (message: string, channel: string) => {
-    try {
-      console.log('[Subscriber]... getting updates', { message, channel });
-      const salesData = await fetchTopMarketplaceItems('sorted_by_created_at_no_text', 'DESC');
-      io.to('onSale').emit('update', { channel: 'onSale', payload: salesData, operation: message });
-    } catch (error) {
-      console.error('Failed to fetch or send updates:', error);
-    }
+  const listenerOnSale = async (message: string) => {
+    console.log('[Subscriber]... getting sale updates', { message });
+    await sendMessageToChannel(io, 'onSale:10', message);
   };
 
-  await sub.subscribe('update_sets', listener);
+  await sub.subscribe('update_sets_on_sale', listenerOnSale);
+
+  const listenerOnAuction = async (message: string) => {
+    console.log('[Subscriber]... getting auction updates', { message });
+    await sendMessageToChannel(io, 'onAuction:10', message);
+  };
+
+  await sub.subscribe('update_sets_on_auction', listenerOnAuction);
 
   io.on('connection', (socket: Socket) => {
     console.log('New client connected:', socket.id);
 
-    const sendUpdates = async () => {
-      try {
-        const salesData = await fetchTopMarketplaceItems('sorted_by_created_at_no_text', 'DESC', 10);
-        console.log('Fetched sales data:', salesData.length);
-        io.to('onSale').emit('update', { channel: 'onSale', payload: salesData, operation: 'start' });
-      } catch (error) {
-        console.error('Failed to fetch or send updates:', error);
-      }
-    };
-
-    socket.on('joinChannel', (channel: string) => {
+    socket.on('joinChannel', async (channel: CHANNELS) => {
       console.log(`Client ${socket.id} joined channel ${channel}`);
       socket.join(channel);
-      sendUpdates(); // send current list of items from redis
+      await sendMessageToChannel(io, channel, 'start');
     });
 
-    socket.on('leaveChannel', (channel: string) => {
+    socket.on('leaveChannel', (channel: CHANNELS) => {
       console.log(`Client ${socket.id} left channel ${channel}`);
       socket.leave(channel);
     });

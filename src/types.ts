@@ -33,3 +33,41 @@ export type ValidKeys =
   | 'sorted_by_num_no_text';
 
 export type ValidOrders = 'ASC' | 'DESC';
+
+export interface RawNostrEvent {
+  sig: string;
+  inscriptionId: string;
+  kind: number;
+  created_at: number;
+  id: string;
+  value: number;
+  content: string;
+  pubkey: string;
+  tags: [string, string][];
+}
+
+export type Auction = {
+  initialPrice: number;
+  metadata: {
+    nostr?: RawNostrEvent;
+    scheduledTime: number;
+    nostrEventId: string;
+    price: number;
+    signedPsbt: string;
+    index: number;
+    isLastEvent: boolean;
+    id: string;
+    endTime: number;
+  }[];
+  inscriptionId: string;
+  secondsBetweenEachDecrease: number;
+  status: string;
+  decreaseAmount: number;
+  btcAddress: string;
+  currentPrice: number;
+  startTime: number;
+  scheduledISODate: string;
+  output: string;
+  id: string;
+  reservePrice: number;
+};

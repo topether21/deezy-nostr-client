@@ -7,7 +7,7 @@ import routes from './routes';
 import admin from './queues/bull-board';
 import { Server as IOServer } from 'socket.io';
 import { setupSocketServer } from './sockets';
-import { initCache } from './cache';
+import { initCache } from './subscription';
 
 app.use(cors());
 
@@ -19,9 +19,11 @@ const io = new IOServer(server, {
   },
 });
 
-app.get('/status', (_, res: Response) => {
+app.get('/', (_, res: Response) => {
   res.send({
     status: 'ok',
+    message: 'Welcome to the Deezy/Nostr API',
+    version: require('../package.json').version,
   });
 });
 

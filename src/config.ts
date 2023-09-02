@@ -35,3 +35,6 @@ export const config: Config = {
   hostname: env.get('HOSTNAME').asString() || '0.0.0.0',
   port: env.get('PORT').asIntPositive() || 3000,
 };
+
+export const MAX_CAPACITY = process.env.MAX_CAPACITY ? parseInt(process.env.MAX_CAPACITY) : 10;
+export const MIN_NON_TEXT_ITEMS = process.env.MIN_NON_TEXT_ITEMS ? parseInt(process.env.MIN_NON_TEXT_ITEMS) : 5;
