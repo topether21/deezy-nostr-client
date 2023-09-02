@@ -1,6 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { fetchTopAuctionItems, fetchTopMarketplaceItems, sub } from './cache';
 import { NosftEvent } from './types';
+import { isTextInscription } from './utils';
 
 // Available OfferChannel
 
@@ -14,25 +15,29 @@ interface UpdatePayload {
   operation: string;
 }
 
+const isAuctionChannel = (channel: OfferChannel) => auctionChannels.includes(channel);
+const isSaleChannel = (channel: OfferChannel) => saleChannels.includes(channel);
+
 const sendMessageToChannel = async (io: Server, channel: OfferChannel, operation: string) => {
   let data: NosftEvent[] = [];
 
   console.log('[sendMessageToChannel]', { channel, operation });
 
-  if (channel === 'onAuction' || channel === 'onAuction:10') {
+  if (isAuctionChannel(channel)) {
     data = await fetchTopAuctionItems('DESC');
-  } else if (channel === 'onSale') {
+  } else if (isSaleChannel(channel)) {
     data = await fetchTopMarketplaceItems('sorted_by_created_at_all', 'DESC');
   }
 
-  if (auctionChannels.includes(channel)) {
+  if (isAuctionChannel(channel)) {
     const topAuctionsPayload: UpdatePayload = { channel: 'onAuction:10', payload: data.slice(0, 10), operation };
     const auctionsPayload: UpdatePayload = { channel: 'onAuction', payload: data, operation };
 
     io.to('onAuction:10').emit('update', topAuctionsPayload);
     io.to('onAuction').emit('update', auctionsPayload);
-  } else if (saleChannels.includes(channel)) {
-    const topSalesPayload: UpdatePayload = { channel: 'onSale:10', payload: data.slice(0, 10), operation };
+  } else if (isSaleChannel(channel)) {
+    const topSalesNoText = data.filter((item) => !isTextInscription(item.content_type)).slice(0, 10);
+    const topSalesPayload: UpdatePayload = { channel: 'onSale:10', payload: topSalesNoText, operation };
     const salesPayload: UpdatePayload = { channel: 'onSale', payload: data, operation };
 
     io.to('onSale:10').emit('update', topSalesPayload);
@@ -43,7 +48,7 @@ const sendMessageToChannel = async (io: Server, channel: OfferChannel, operation
 export const setupSocketServer = async (io: Server) => {
   const listenerOnSale = async (message: string, channel: string) => {
     console.log('[Subscriber]... getting sale updates', { message, channel });
-    await sendMessageToChannel(io, 'onAuction', message);
+    await sendMessageToChannel(io, 'onSale', message);
   };
 
   await sub.subscribe('update_sets_on_sale', listenerOnSale);

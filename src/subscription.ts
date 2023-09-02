@@ -6,8 +6,8 @@ import { clearAllLists, db, pub, sub, updateAuctions } from './cache';
 import { MIN_NON_TEXT_ITEMS } from './config';
 import { Auction } from 'types';
 
-export const subscribeToOnSale = (maxOnSale: number = 100) => {
-  const orderSubscription = nostrPool.subscribeOrders({ limit: maxOnSale }).subscribe(async (event) => {
+export const subscribeToOnSale = (limitSaleResults: number = 100) => {
+  const orderSubscription = nostrPool.subscribeOrders({ limit: limitSaleResults }).subscribe(async (event) => {
     try {
       nostrQueue.add(nostrConfig.name, event, {
         jobId: event.id,
