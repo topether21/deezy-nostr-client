@@ -100,6 +100,10 @@ export const updateAuctions = async (auctions: Auction[]) => {
   }
 };
 
+const takeLatestInscription = (itemA: NosftEvent, itemB: NosftEvent): boolean => {
+  return itemA.created_at >= itemB.created_at;
+};
+
 export const addOnSaleItem = async (item: NosftEvent) => {
   const key = 'sorted_by_created_at_all';
   const score = item.created_at;
@@ -107,35 +111,45 @@ export const addOnSaleItem = async (item: NosftEvent) => {
   let isAdded = false; // Flag for added item
   let isRemoved = false; // Flag for removed item
 
-  const existingItemTimestamp = await db.hGet(key + '_hash', item.output);
+  const existingItemScore = await db.hGet(key + '_hash', item.output);
 
-  const multi = db.multi();
+  if (existingItemScore) {
+    const existingItems = await db.zRangeByScore(key, existingItemScore, existingItemScore);
+    const parsedItem: NosftEvent = JSON.parse(existingItems[0]);
 
-  if (existingItemTimestamp && parseInt(existingItemTimestamp) >= score) {
-    // The existing item is newer or the same, so skip
-    return;
+    if (!takeLatestInscription(parsedItem, item)) {
+      // Remove existing older item and add new item
+      await db
+        .multi()
+        .zRem(key, existingItems[0])
+        .hDel(key + '_hash', item.output)
+        .zAdd(key, [
+          {
+            score: parseInt(score.toString()),
+            value: JSON.stringify(item),
+          },
+        ])
+        .hSet(key + '_hash', item.output, score.toString())
+        .exec();
+      isRemoved = true;
+      isAdded = true;
+    } else {
+      return;
+    }
+  } else {
+    // Add new item
+    await db
+      .multi()
+      .zAdd(key, [
+        {
+          score: parseInt(score.toString()),
+          value: JSON.stringify(item),
+        },
+      ])
+      .hSet(key + '_hash', item.output, score.toString())
+      .exec();
+    isAdded = true;
   }
-
-  if (existingItemTimestamp) {
-    // Remove the older item
-    const existingItems = await db.zRangeByScore(key, existingItemTimestamp, existingItemTimestamp);
-    multi.zRem(key, existingItems[0]).hDel(key + '_hash', item.output);
-    isRemoved = true;
-  }
-
-  // Add the new item
-  multi
-    .zAdd(key, [
-      {
-        score: parseInt(score.toString()),
-        value: JSON.stringify(item),
-      },
-    ])
-    .hSet(key + '_hash', item.output, score.toString());
-
-  await multi.exec();
-
-  isAdded = true;
 
   // Check for max capacity and remove the oldest item if needed
   const setSize = await db.zCount(key, '-inf', '+inf');
@@ -147,7 +161,7 @@ export const addOnSaleItem = async (item: NosftEvent) => {
     }
   }
 
-  // Publish events based on flags
+  // Publish events
   if (isAdded) {
     pub.publish('update_sets_on_sale', 'add');
     console.log('Published [add][onsale] event to update_sets');
