@@ -100,7 +100,7 @@ export const updateAuctions = async (auctions: Auction[]) => {
 
   if (isAdded) {
     pub.publish('update_sets_on_auction', 'add');
-    console.log('Published [add] event to update_sets_on_auction');
+    console.log('Published [add][auction] event to update_sets_on_auction');
   }
 };
 
@@ -164,13 +164,13 @@ export const addOnSaleItem = async (item: NosftEvent) => {
   // Publish 'update_sets_on_sale' only if an item has been added
   if (isAdded) {
     pub.publish('update_sets_on_sale', 'add');
-    console.log('Published [add] event to update_sets');
+    console.log('Published [add][onsale] event to update_sets');
   }
 
   // Publish 'update_sets_on_sale' only if an item has been removed
   if (isRemoved) {
     pub.publish('update_sets_on_sale', 'remove');
-    console.log('Published [remove] event to update_sets');
+    console.log('Published [remove][onsale] event to update_sets');
   }
 
   // Existing code to check nonTextCount and possibly load more items

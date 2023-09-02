@@ -33,10 +33,10 @@ export const subscribeToOnAuctions = () => {
       await updateAuctions(auctions);
       console.log('Auctions:', auctions.length);
     } catch (error) {
-      console.error(error);
+      console.error('[error]', (error as Error).message);
     }
   };
-  // create a cron job to fetch auctions every 10 seconds
+  // create a cron job to fetch auctions every 15 seconds
   cron.schedule('*/15 * * * * *', cronJob);
   cronJob();
 };
