@@ -249,6 +249,12 @@ export const fetchTopAuctionItems = async (order: 'ASC' | 'DESC' = 'DESC', limit
 };
 
 export const clearAllLists = async () => {
+  const keys = ['sorted_by_created_at_all', 'sorted_by_created_at_no_text'];
+
+  for (const key of keys) {
+    await db.del(key + '_hash');
+  }
+
   for (const key of keys) {
     await db.zRemRangeByRank(key, 0, -1);
   }
