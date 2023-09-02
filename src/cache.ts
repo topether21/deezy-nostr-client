@@ -117,32 +117,26 @@ export const addOnSaleItem = async (item: NosftEvent) => {
     const existingItems = await db.zRangeByScore(key, existingItemScore, existingItemScore);
     const parsedItem: NosftEvent = JSON.parse(existingItems[0]);
 
-    if (!takeLatestInscription(parsedItem, item)) {
-      // Remove existing older item
+    if (!takeLatestInscription(parsedItem, item) || parsedItem.output !== item.output) {
+      // Remove existing older item and add new item
       await db
         .multi()
         .zRem(key, existingItems[0])
         .hDel(key + '_hash', item.output)
+        .zAdd(key, [
+          {
+            score: parseInt(score.toString()),
+            value: JSON.stringify(item),
+          },
+        ])
+        .hSet(key + '_hash', item.output, score.toString())
         .exec();
       isRemoved = true;
+      isAdded = true;
     } else {
       return;
     }
   }
-
-  // Add new item
-  await db
-    .multi()
-    .zAdd(key, [
-      {
-        score: parseInt(score.toString()),
-        value: JSON.stringify(item),
-      },
-    ])
-    .hSet(key + '_hash', item.output, score.toString())
-    .exec();
-
-  isAdded = true;
 
   // Check for max capacity and remove the oldest item if needed
   const setSize = await db.zCount(key, '-inf', '+inf');
