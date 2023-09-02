@@ -18,7 +18,7 @@ const sendMessageToChannel = async (io: Server, channel: CHANNELS, operation: st
   if (channelName === 'onAuction') {
     data = await fetchTopAuctionItems('DESC', limit);
   } else if (channelName === 'onSale') {
-    data = await fetchTopMarketplaceItems('sorted_by_created_at_no_text', 'DESC', limit);
+    data = (await fetchTopMarketplaceItems('sorted_by_created_at_all', 'DESC')).slice(0, 10);
   }
 
   const payload: UpdatePayload = { channel: channelName as CHANNELS, payload: data, operation };
