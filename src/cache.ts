@@ -117,7 +117,7 @@ export const addOnSaleItem = async (item: NosftEvent) => {
     const existingItems = await db.zRangeByScore(key, existingItemScore, existingItemScore);
     const parsedItem: NosftEvent = JSON.parse(existingItems[0]);
 
-    if (!takeLatestInscription(parsedItem, item) || parsedItem.output !== item.output) {
+    if (!takeLatestInscription(parsedItem, item)) {
       // Remove existing older item and add new item
       await db
         .multi()
@@ -235,13 +235,5 @@ export const fetchTopAuctionItems = async (order: 'ASC' | 'DESC' = 'DESC', limit
 };
 
 export const clearAllLists = async () => {
-  const keys = ['sorted_by_created_at_all', 'sorted_by_created_at_no_text'];
-
-  for (const key of keys) {
-    await db.del(key + '_hash');
-  }
-
-  for (const key of keys) {
-    await db.zRemRangeByRank(key, 0, -1);
-  }
+  await db.flushAll();
 };
