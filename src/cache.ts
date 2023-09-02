@@ -136,6 +136,19 @@ export const addOnSaleItem = async (item: NosftEvent) => {
     } else {
       return;
     }
+  } else {
+    // Add new item
+    await db
+      .multi()
+      .zAdd(key, [
+        {
+          score: parseInt(score.toString()),
+          value: JSON.stringify(item),
+        },
+      ])
+      .hSet(key + '_hash', item.output, score.toString())
+      .exec();
+    isAdded = true;
   }
 
   // Check for max capacity and remove the oldest item if needed
