@@ -40,7 +40,7 @@ export const nostrWorker = new Worker(
     };
   },
   {
-    concurrency: 1,
+    concurrency: 10,
     connection,
   }
 );

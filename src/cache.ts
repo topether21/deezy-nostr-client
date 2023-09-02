@@ -2,7 +2,7 @@
 import { createClient } from 'redis';
 import { formatAuction } from './services/nosft';
 import { Auction, NosftEvent, RawNostrEvent, ValidKeys } from './types';
-import { MAX_CAPACITY, MIN_NON_TEXT_ITEMS } from './config';
+import { MIN_NON_TEXT_ITEMS } from './config';
 import crypto from 'crypto';
 
 const auth = process.env.REDIS_TYPE === 'internal' ? {} : { password: process.env.REDIS_PASSWORD };
@@ -104,46 +104,49 @@ export const addOnSaleItem = async (item: NosftEvent) => {
   const key = 'sorted_by_created_at_all';
   const score = item.created_at;
 
-  let isAdded = false; // Flag for added item
-  let isRemoved = false; // Flag for removed item
+  let isAdded = false;
+  let isRemoved = false;
 
-  const existingItemTimestamp = await db.hGet(key + '_hash', item.output);
+  let retries = 5;
+  while (retries > 0) {
+    // Watch the hash key for changes
+    await db.watch(key + '_hash');
 
-  const multi = db.multi();
+    const existingItemTimestamp = await db.hGet(key + '_hash', item.output);
 
-  if (existingItemTimestamp && parseInt(existingItemTimestamp) >= score) {
-    // The existing item is newer or the same, so skip
-    return;
-  }
+    if (existingItemTimestamp && parseInt(existingItemTimestamp) >= score) {
+      // The existing item is newer or the same, so skip
+      return;
+    }
 
-  if (existingItemTimestamp) {
-    // Remove the older item
-    const existingItems = await db.zRangeByScore(key, existingItemTimestamp, existingItemTimestamp);
-    multi.zRem(key, existingItems[0]).hDel(key + '_hash', item.output);
-    isRemoved = true;
-  }
+    const multi = db.multi();
 
-  // Add the new item
-  multi
-    .zAdd(key, [
-      {
-        score: parseInt(score.toString()),
-        value: JSON.stringify(item),
-      },
-    ])
-    .hSet(key + '_hash', item.output, score.toString());
-
-  await multi.exec();
-
-  isAdded = true;
-
-  // Check for max capacity and remove the oldest item if needed
-  const setSize = await db.zCount(key, '-inf', '+inf');
-  if (setSize > MAX_CAPACITY) {
-    const oldestItems = await db.zRange(key, 0, 0);
-    if (oldestItems.length > 0) {
-      await db.multi().zRem(key, oldestItems[0]).exec();
+    if (existingItemTimestamp) {
+      // Remove the older item
+      const existingItems = await db.zRangeByScore(key, existingItemTimestamp, existingItemTimestamp);
+      multi.zRem(key, existingItems[0]).hDel(key + '_hash', item.output);
       isRemoved = true;
+    }
+
+    // Add the new item
+    multi
+      .zAdd(key, [
+        {
+          score: parseInt(score.toString()),
+          value: JSON.stringify(item),
+        },
+      ])
+      .hSet(key + '_hash', item.output, score.toString());
+
+    const results = await multi.exec();
+
+    if (results === null) {
+      // Someone else modified the key, retry
+      retries -= 1;
+    } else {
+      // Success, exit loop
+      isAdded = true;
+      break;
     }
   }
 

@@ -100,66 +100,76 @@ export const updateAuctions = async (auctions: Auction[]) => {
   }
 };
 
-const takeLatestInscription = (itemA: NosftEvent, itemB: NosftEvent): boolean => {
-  return itemA.created_at >= itemB.created_at;
-};
-
 export const addOnSaleItem = async (item: NosftEvent) => {
   const key = 'sorted_by_created_at_all';
-  const hashKey = `item:${item.output}`; // Use the inscriptionId as the key
+  const score = item.created_at;
 
-  // Check for an existing item with the same inscriptionId
-  const existingItem = await db.hGet(hashKey, 'data');
+  let isAdded = false; // Flag for added item
+  let isRemoved = false; // Flag for removed item
 
-  if (existingItem) {
-    const parsedItem = JSON.parse(existingItem);
-    if (takeLatestInscription(parsedItem, item)) {
-      // If the existing item is newer, don't add the new item
-      return;
-    } else {
-      // If the new item is newer, remove the existing item from the sorted set
-      await db.zRem(key, existingItem);
-    }
+  const existingItemTimestamp = await db.hGet(key + '_hash', item.output);
+
+  const multi = db.multi();
+
+  if (existingItemTimestamp && parseInt(existingItemTimestamp) >= score) {
+    // The existing item is newer or the same, so skip
+    return;
   }
 
-  // Add the new item to the hash and the sorted set
-  const itemData = JSON.stringify(item);
-  await db.hSet(hashKey, 'data', itemData);
-  await db.zAdd(key, [
-    {
-      score: parseInt(item.created_at.toString()),
-      value: itemData,
-    },
-  ]);
+  if (existingItemTimestamp) {
+    // Remove the older item
+    const existingItems = await db.zRangeByScore(key, existingItemTimestamp, existingItemTimestamp);
+    multi.zRem(key, existingItems[0]).hDel(key + '_hash', item.output);
+    isRemoved = true;
+  }
+
+  // Add the new item
+  multi
+    .zAdd(key, [
+      {
+        score: parseInt(score.toString()),
+        value: JSON.stringify(item),
+      },
+    ])
+    .hSet(key + '_hash', item.output, score.toString());
+
+  await multi.exec();
+
+  isAdded = true;
 
   // Check for max capacity and remove the oldest item if needed
   const setSize = await db.zCount(key, '-inf', '+inf');
   if (setSize > MAX_CAPACITY) {
     const oldestItems = await db.zRange(key, 0, 0);
     if (oldestItems.length > 0) {
-      // Remove the oldest item from both the sorted set and the hash
-      await db.zRem(key, oldestItems[0]);
-      await db.hDel(`item:${JSON.parse(oldestItems[0]).output}`, 'data');
+      await db.multi().zRem(key, oldestItems[0]).exec();
+      isRemoved = true;
     }
   }
 
-  // Publish 'update_sets_on_sale' only if an item has been added
-  pub.publish('update_sets_on_sale', 'add');
-  console.log('Published [add][onsale] event to update_sets');
+  // Publish events based on flags
+  if (isAdded) {
+    pub.publish('update_sets_on_sale', 'add');
+    console.log('Published [add][onsale] event to update_sets');
+  }
+
+  if (isRemoved) {
+    pub.publish('update_sets_on_sale', 'remove');
+    console.log('Published [remove][onsale] event to update_sets');
+  }
 };
 
 export const validOrders = ['ASC', 'DESC'];
 
-export const keys = ['sorted_by_created_at_all'];
+export const keys = ['sorted_by_created_at_all', 'sorted_by_created_at_no_text'];
 
-export const removeOnSaleItem = async (item: NosftEvent) => {
-  const hashKey = `item:${item.output}`; // Use the inscriptionId as the key
+export const removeItem = async (item: NosftEvent) => {
+  for (const key of keys) {
+    await db.zRem(key, JSON.stringify(item));
+    await db.hDel(key + '_hash', item.output);
+  }
 
-  // Remove the item from both the sorted set and the hash
-  await db.zRem('sorted_by_created_at_all', JSON.stringify(item));
-  await db.hDel(hashKey, 'data');
-
-  const nonTextCount = await db.zCount('sorted_by_created_at_all', '-inf', '+inf');
+  const nonTextCount = await db.zCount('sorted_by_created_at_no_text', '-inf', '+inf');
   if (nonTextCount < MIN_NON_TEXT_ITEMS) {
     loadMoreItems();
   }
@@ -211,7 +221,5 @@ export const fetchTopAuctionItems = async (order: 'ASC' | 'DESC' = 'DESC', limit
 };
 
 export const clearAllLists = async () => {
-  for (const key of keys) {
-    await db.zRemRangeByRank(key, 0, -1);
-  }
+  await db.flushAll();
 };
