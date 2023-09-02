@@ -45,7 +45,7 @@ router.get('/api/v1/auctions', async (_req: Request, res: Response) => {
       auctions,
     });
   } catch (e) {
-    console.error('[/api/v1/marketplace][error]', e);
+    console.error('[/api/v1/auctions][error]', e);
     res.sendStatus(500);
   }
 });
