@@ -1,6 +1,6 @@
 // https://github.com/microsoft/TypeScript/issues/47663#issuecomment-1519138189
 import { createClient } from 'redis';
-import { formatAuction, isTextInscription } from './services/nosft';
+import { formatAuction } from './services/nosft';
 import { Auction, NosftEvent, RawNostrEvent, ValidKeys } from './types';
 import { MAX_CAPACITY, MIN_NON_TEXT_ITEMS } from './config';
 import crypto from 'crypto';
@@ -105,99 +105,61 @@ const takeLatestInscription = (itemA: NosftEvent, itemB: NosftEvent): boolean =>
 };
 
 export const addOnSaleItem = async (item: NosftEvent) => {
-  const keys = {
-    sorted_by_created_at_all: item.created_at,
-    sorted_by_created_at_no_text: isTextInscription(item) ? null : item.created_at,
-  };
+  const key = 'sorted_by_created_at_all';
+  const hashKey = `item:${item.output}`; // Use the inscriptionId as the key
 
-  let isAdded = false; // Flag for added item
-  let isRemoved = false; // Flag for removed item
+  // Check for an existing item with the same inscriptionId
+  const existingItem = await db.hGet(hashKey, 'data');
 
-  for (const [key, score] of Object.entries(keys)) {
-    if (score !== null) {
-      const existingItemScore = await db.hGet(key + '_hash', item.output);
+  if (existingItem) {
+    const parsedItem = JSON.parse(existingItem);
+    if (takeLatestInscription(parsedItem, item)) {
+      // If the existing item is newer, don't add the new item
+      return;
+    } else {
+      // If the new item is newer, remove the existing item from the sorted set
+      await db.zRem(key, existingItem);
+    }
+  }
 
-      if (existingItemScore) {
-        const existingItems = await db.zRangeByScore(key, existingItemScore, existingItemScore);
-        const parsedItem: NosftEvent = JSON.parse(existingItems[0]);
+  // Add the new item to the hash and the sorted set
+  const itemData = JSON.stringify(item);
+  await db.hSet(hashKey, 'data', itemData);
+  await db.zAdd(key, [
+    {
+      score: parseInt(item.created_at.toString()),
+      value: itemData,
+    },
+  ]);
 
-        if (!takeLatestInscription(parsedItem, item)) {
-          // Remove existing older item
-          await db
-            .multi()
-            .zRem(key, existingItems[0])
-            .hDel(key + '_hash', item.output)
-            .exec();
-
-          isRemoved = true; // Set the flag to true
-        } else {
-          // Do not add the new item, as an identical or newer one exists.
-          continue;
-        }
-      }
-
-      // Add new item
-      await db
-        .multi()
-        .zAdd(key, [
-          {
-            score: parseInt(score.toString()),
-            value: JSON.stringify(item),
-          },
-        ])
-        .hSet(key + '_hash', item.output, score.toString())
-        .exec();
-
-      isAdded = true; // Set the flag to true
-
-      // Check for max capacity and remove the oldest item if needed
-      const setSize = await db.zCount(key, '-inf', '+inf');
-      if (setSize > MAX_CAPACITY) {
-        const oldestItems = await db.zRange(key, 0, 0);
-        if (oldestItems.length > 0) {
-          const oldestItem = JSON.parse(oldestItems[0]);
-          await db
-            .multi()
-            .zRem(key, oldestItems[0])
-            .hDel(key + '_hash', oldestItem.output)
-            .exec();
-
-          isRemoved = true; // Set the flag to true
-        }
-      }
+  // Check for max capacity and remove the oldest item if needed
+  const setSize = await db.zCount(key, '-inf', '+inf');
+  if (setSize > MAX_CAPACITY) {
+    const oldestItems = await db.zRange(key, 0, 0);
+    if (oldestItems.length > 0) {
+      // Remove the oldest item from both the sorted set and the hash
+      await db.zRem(key, oldestItems[0]);
+      await db.hDel(`item:${JSON.parse(oldestItems[0]).output}`, 'data');
     }
   }
 
   // Publish 'update_sets_on_sale' only if an item has been added
-  if (isAdded) {
-    pub.publish('update_sets_on_sale', 'add');
-    console.log('Published [add][onsale] event to update_sets');
-  }
-
-  // Publish 'update_sets_on_sale' only if an item has been removed
-  if (isRemoved) {
-    pub.publish('update_sets_on_sale', 'remove');
-    console.log('Published [remove][onsale] event to update_sets');
-  }
-
-  // Existing code to check nonTextCount and possibly load more items
-  const nonTextCount = await db.zCount('sorted_by_created_at_no_text', '-inf', '+inf');
-  if (nonTextCount < MIN_NON_TEXT_ITEMS) {
-    loadMoreItems();
-  }
+  pub.publish('update_sets_on_sale', 'add');
+  console.log('Published [add][onsale] event to update_sets');
 };
 
 export const validOrders = ['ASC', 'DESC'];
 
-export const keys = ['sorted_by_created_at_all', 'sorted_by_created_at_no_text'];
+export const keys = ['sorted_by_created_at_all'];
 
-export const removeItem = async (item: NosftEvent) => {
-  for (const key of keys) {
-    await db.zRem(key, JSON.stringify(item));
-    await db.hDel(key + '_hash', item.output);
-  }
+export const removeOnSaleItem = async (item: NosftEvent) => {
+  const hashKey = `item:${item.output}`; // Use the inscriptionId as the key
 
-  const nonTextCount = await db.zCount('sorted_by_created_at_no_text', '-inf', '+inf');
+  // Remove the item from both the sorted set and the hash
+  await db.zRem('sorted_by_created_at_all', JSON.stringify(item));
+  await db.hDel(hashKey, 'data');
+
+  const nonTextCount = await db.zCount('sorted_by_created_at_all', '-inf', '+inf');
   if (nonTextCount < MIN_NON_TEXT_ITEMS) {
     loadMoreItems();
   }
