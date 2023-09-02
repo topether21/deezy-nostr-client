@@ -38,7 +38,7 @@ export const updateAuctions = async (auctions: Auction[]) => {
     value: string;
   }[] = [];
 
-  let isAdded = false; // Flag for added auction
+  let updated = false; // Flag for added auction
 
   for (const auction of auctions) {
     if (auction.status !== 'RUNNING') continue;
@@ -88,14 +88,14 @@ export const updateAuctions = async (auctions: Auction[]) => {
   // Add all auctions to Redis sorted set in one go
   if (auctionsWithTimestamp.length > 0) {
     await db.zAdd(AUCTION_KEY, auctionsWithTimestamp);
-    isAdded = true;
+    updated = true;
   }
 
   // Update the stored hash
   await db.set('auctions_hash', newHash);
 
-  if (isAdded) {
-    pub.publish('update_sets_on_auction', 'add');
+  if (updated) {
+    pub.publish('update_sets_on_auction', 'update');
     console.log('Published [add][auction] event to update_sets_on_auction');
   }
 };

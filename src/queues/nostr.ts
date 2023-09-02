@@ -49,8 +49,7 @@ export const addOnSaleWorker = new Worker(
 
 export const nostrWorker = new Worker(
   nostrQueue.name,
-  async ({ data, name, id }: Job<RawNostrEvent>) => {
-    console.log(`[worker]-->`, name, id);
+  async ({ data }: Job<RawNostrEvent>) => {
     const inscription = await buildInscription(data);
 
     if (!inscription) return;
