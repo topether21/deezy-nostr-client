@@ -18,9 +18,13 @@ export const nostrQueue = new Queue(nostrConfig.name, {
 export const buildInscription = async (event: RawNostrEvent): Promise<NosftEvent | undefined> => {
   const order = await getOrderInformation(event);
   const inscription: NosftEvent = await getInscriptionData(order);
-  const isSpentUtxo = await isSpent(inscription);
-  if (!isSpentUtxo.spent) {
-    return inscription;
+  try {
+    const isSpentUtxo = await isSpent(inscription);
+    if (!isSpentUtxo.spent) {
+      return inscription;
+    }
+  } catch (error) {
+    console.error('Error on isSpent', error);
   }
 };
 
@@ -34,7 +38,9 @@ export const addOnSaleWorker = new Worker(
   async ({ data }: Job<NosftEvent>) => {
     if (!data) return;
 
+    console.log('----> [Adding on sale item]...', data.output);
     await addOnSaleItem(data);
+    console.log('<<---- [Added on sale item]...', data.output);
 
     return {
       status: 'ok',

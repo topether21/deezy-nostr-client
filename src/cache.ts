@@ -20,12 +20,7 @@ export const db = new Redis(redisConfig);
 const pub = db.duplicate();
 const sub = db.duplicate();
 
-const redlock = new Redlock([db as any, pub as any, sub as any], {
-  driftFactor: 0.01,
-  retryCount: 10,
-  retryDelay: 200,
-  retryJitter: 200,
-});
+const redlock = new Redlock([db as any], {});
 
 export { pub, sub };
 
@@ -162,15 +157,24 @@ export const addItemsAux = async (item: NosftEvent) => {
 
 export const addOnSaleItem = async (item: NosftEvent) => {
   const lockKey = 'addOnSaleItemLock';
-
-  let lock = await redlock.acquire([lockKey], 5000);
+  let lock;
   try {
-    addItemsAux(item);
+    lock = await redlock.acquire([lockKey], 5000);
+    console.log('Acquired lock, performing operation...');
+    await addItemsAux(item); // assuming this is an async function
   } catch (err) {
-    console.log('Could not acquire lock');
+    console.log('Could not acquire lock', err);
   } finally {
     // Release the lock.
-    await lock.unlock();
+    if (lock) {
+      try {
+        //@ts-ignore
+        await lock.release();
+        console.log('Releasing lock...');
+      } catch (unlockError) {
+        console.log('Error releasing lock', unlockError);
+      }
+    }
   }
 };
 
