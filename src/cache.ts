@@ -100,62 +100,86 @@ export const updateAuctions = async (auctions: Auction[]) => {
   }
 };
 
+async function acquireLock(key: string, timeout = 10000): Promise<boolean> {
+  const result = await db.set(key, 'lock', {
+    NX: true,
+    PX: timeout,
+  });
+  return result === 'OK';
+}
+
+async function releaseLock(key: string): Promise<number> {
+  return await db.del(key);
+}
+
 export const addOnSaleItem = async (item: NosftEvent) => {
-  const key = 'sorted_by_created_at_all';
-  const score = item.created_at;
+  const lockKey = 'addOnSaleItemLock';
 
-  let isAdded = false; // Flag for added item
-  let isRemoved = false; // Flag for removed item
+  // Try to acquire a lock
+  if (await acquireLock(lockKey)) {
+    try {
+      const key = 'sorted_by_created_at_all';
+      const score = item.created_at;
 
-  const existingItemTimestamp = await db.hGet(key + '_hash', item.output);
+      let isAdded = false; // Flag for added item
+      let isRemoved = false; // Flag for removed item
 
-  const multi = db.multi();
+      const existingItemTimestamp = await db.hGet(key + '_hash', item.output);
 
-  if (existingItemTimestamp && parseInt(existingItemTimestamp) >= score) {
-    // The existing item is newer or the same, so skip
-    return;
-  }
+      const multi = db.multi();
 
-  if (existingItemTimestamp) {
-    // Remove the older item
-    const existingItems = await db.zRangeByScore(key, existingItemTimestamp, existingItemTimestamp);
-    multi.zRem(key, existingItems[0]).hDel(key + '_hash', item.output);
-    isRemoved = true;
-  }
+      if (existingItemTimestamp && parseInt(existingItemTimestamp) >= score) {
+        // The existing item is newer or the same, so skip
+        return;
+      }
 
-  // Add the new item
-  multi
-    .zAdd(key, [
-      {
-        score: parseInt(score.toString()),
-        value: JSON.stringify(item),
-      },
-    ])
-    .hSet(key + '_hash', item.output, score.toString());
+      if (existingItemTimestamp) {
+        // Remove the older item
+        const existingItems = await db.zRangeByScore(key, existingItemTimestamp, existingItemTimestamp);
+        multi.zRem(key, existingItems[0]).hDel(key + '_hash', item.output);
+        isRemoved = true;
+      }
 
-  await multi.exec();
+      // Add the new item
+      multi
+        .zAdd(key, [
+          {
+            score: parseInt(score.toString()),
+            value: JSON.stringify(item),
+          },
+        ])
+        .hSet(key + '_hash', item.output, score.toString());
 
-  isAdded = true;
+      await multi.exec();
 
-  // Check for max capacity and remove the oldest item if needed
-  const setSize = await db.zCount(key, '-inf', '+inf');
-  if (setSize > MAX_CAPACITY) {
-    const oldestItems = await db.zRange(key, 0, 0);
-    if (oldestItems.length > 0) {
-      await db.multi().zRem(key, oldestItems[0]).exec();
-      isRemoved = true;
+      isAdded = true;
+
+      // Check for max capacity and remove the oldest item if needed
+      const setSize = await db.zCount(key, '-inf', '+inf');
+      if (setSize > MAX_CAPACITY) {
+        const oldestItems = await db.zRange(key, 0, 0);
+        if (oldestItems.length > 0) {
+          await db.multi().zRem(key, oldestItems[0]).exec();
+          isRemoved = true;
+        }
+      }
+
+      // Publish events based on flags
+      if (isAdded) {
+        pub.publish('update_sets_on_sale', 'add');
+        console.log('Published [add][onsale] event to update_sets');
+      }
+
+      if (isRemoved) {
+        pub.publish('update_sets_on_sale', 'remove');
+        console.log('Published [remove][onsale] event to update_sets');
+      }
+    } finally {
+      // Always release the lock
+      await releaseLock(lockKey);
     }
-  }
-
-  // Publish events based on flags
-  if (isAdded) {
-    pub.publish('update_sets_on_sale', 'add');
-    console.log('Published [add][onsale] event to update_sets');
-  }
-
-  if (isRemoved) {
-    pub.publish('update_sets_on_sale', 'remove');
-    console.log('Published [remove][onsale] event to update_sets');
+  } else {
+    console.log('Could not acquire lock');
   }
 };
 
