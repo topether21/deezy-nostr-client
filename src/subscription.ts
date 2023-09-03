@@ -1,10 +1,9 @@
 import { nostrPool } from './nostr-relay';
-import { getAuctions } from './services/nosft';
+
 import { nostrConfig, nostrQueue } from './queues/nostr';
 import cron from 'node-cron';
-import { clearAllLists, db, isQueueActive, pub, sub, updateAuctions } from './cache';
+import { clearAllLists, db, isQueueActive, pub, sub } from './cache';
 import { MIN_NON_TEXT_ITEMS } from './config';
-import { Auction } from 'types';
 
 type Subscription = {
   cleanup: () => void;
@@ -33,22 +32,22 @@ export const subscribeToOnSale = (limitSaleResults: number = 100) => {
   };
 };
 
-export const subscribeToOnAuctions = () => {
-  const cronJob = async () => {
-    try {
-      const auctions = (await getAuctions()).filter((a) => a.status === 'RUNNING') as Auction[];
-      await updateAuctions(auctions);
-      console.log('Auctions:', auctions.length);
-    } catch (error) {
-      console.error('[error]', (error as Error).message);
-    }
-  };
-  // create a cron job to fetch auctions every 15 seconds
-  cron.schedule('*/15 * * * * *', cronJob);
-  cronJob();
-};
+// export const subscribeToOnAuctions = () => {
+//   const cronJob = async () => {
+//     try {
+//       const auctions = (await getAuctions()).filter((a) => a.status === 'RUNNING') as Auction[];
+//       await updateAuctions(auctions);
+//       console.log('Auctions:', auctions.length);
+//     } catch (error) {
+//       console.error('[error]', (error as Error).message);
+//     }
+//   };
+//   // create a cron job to fetch auctions every 15 seconds
+//   cron.schedule('*/15 * * * * *', cronJob);
+//   cronJob();
+// };
 
-export const onSalCron = async () => {
+export const onSaleCron = async () => {
   const cronJob = async () => {
     try {
       const isActive = await isQueueActive();
@@ -73,11 +72,9 @@ export const initCache = async () => {
 
   await clearAllLists();
 
-  subscribeToOnAuctions();
-
   const { cleanup } = subscribeToOnSale(MIN_NON_TEXT_ITEMS);
 
   currentSubscriptions.push({ cleanup });
 
-  await onSalCron();
+  await onSaleCron();
 };

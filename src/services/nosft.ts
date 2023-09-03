@@ -1,6 +1,6 @@
 import 'websocket-polyfill';
 import { Nosft } from 'nosft-core';
-import { RawNostrEvent } from 'types';
+import { RawNostrEvent } from './../types';
 import { buildInscription } from './../queues/nostr';
 
 const nosft = Nosft();
