@@ -2,6 +2,7 @@ import { ValidKeys, ValidOrders } from './types';
 import { clearAllLists, fetchTopAuctionItems, fetchTopMarketplaceItems, keys as validKeys, validOrders } from './cache';
 import express, { Router, Request, Response } from 'express';
 import { MIN_NON_TEXT_ITEMS } from './config';
+import { isTextInscription } from './utils';
 
 const router: Router = express.Router();
 
@@ -43,6 +44,23 @@ router.get('/api/v1/auctions', async (_req: Request, res: Response) => {
     res.send({
       status: 'ok',
       auctions,
+    });
+  } catch (e) {
+    console.error('[/api/v1/auctions][error]', e);
+    res.sendStatus(500);
+  }
+});
+
+router.get('/api/v1/home', async (_req: Request, res: Response) => {
+  try {
+    const marketplace = (await fetchTopMarketplaceItems('sorted_by_created_at_all'))
+      .filter((item) => !isTextInscription(item.content_type))
+      .slice(0, 10);
+    const auctions = (await fetchTopAuctionItems()).slice(0, 10);
+    res.send({
+      status: 'ok',
+      auctions,
+      marketplace,
     });
   } catch (e) {
     console.error('[/api/v1/auctions][error]', e);
