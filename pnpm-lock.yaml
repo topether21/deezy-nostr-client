@@ -38,6 +38,9 @@ dependencies:
   express:
     specifier: ^4.18.2
     version: 4.18.2
+  ioredis:
+    specifier: ^5.3.2
+    version: 5.3.2
   json-diff:
     specifier: ^1.0.6
     version: 1.0.6
@@ -56,9 +59,9 @@ dependencies:
   nostr-tools:
     specifier: ^1.14.2
     version: 1.14.2
-  redis:
-    specifier: ^4.6.8
-    version: 4.6.8
+  redlock:
+    specifier: 5.0.0-beta.2
+    version: 5.0.0-beta.2
   rxjs:
     specifier: ^7.8.1
     version: 7.8.1
@@ -112,6 +115,9 @@ devDependencies:
   '@types/redis-info':
     specifier: ^3.0.0
     version: 3.0.0
+  '@types/redlock':
+    specifier: ^4.0.4
+    version: 4.0.4
   '@types/uuid':
     specifier: ^9.0.3
     version: 9.0.3
@@ -640,6 +646,7 @@ packages:
       '@redis/client': ^1.0.0
     dependencies:
       '@redis/client': 1.5.9
+    dev: true
 
   /@redis/client@1.5.9:
     resolution: {integrity: sha512-SffgN+P1zdWJWSXBvJeynvEnmnZrYmtKSRW00xl8pOPFOMJjxRR9u0frSxJpPR6Y4V+k54blJjGW7FgxbTI7bQ==}
@@ -648,6 +655,7 @@ packages:
       cluster-key-slot: 1.1.2
       generic-pool: 3.9.0
       yallist: 4.0.0
+    dev: true
 
   /@redis/graph@1.1.0(@redis/client@1.5.9):
     resolution: {integrity: sha512-16yZWngxyXPd+MJxeSr0dqh2AIOi8j9yXKcKCwVaKDbH3HTuETpDVPcLujhFYVPtYrngSco31BUcSa9TH31Gqg==}
@@ -655,6 +663,7 @@ packages:
       '@redis/client': ^1.0.0
     dependencies:
       '@redis/client': 1.5.9
+    dev: true
 
   /@redis/json@1.0.4(@redis/client@1.5.9):
     resolution: {integrity: sha512-LUZE2Gdrhg0Rx7AN+cZkb1e6HjoSKaeeW8rYnt89Tly13GBI5eP4CwDVr+MY8BAYfCg4/N15OUrtLoona9uSgw==}
@@ -662,6 +671,7 @@ packages:
       '@redis/client': ^1.0.0
     dependencies:
       '@redis/client': 1.5.9
+    dev: true
 
   /@redis/search@1.1.3(@redis/client@1.5.9):
     resolution: {integrity: sha512-4Dg1JjvCevdiCBTZqjhKkGoC5/BcB7k9j99kdMnaXFXg8x4eyOIVg9487CMv7/BUVkFLZCaIh8ead9mU15DNng==}
@@ -669,6 +679,7 @@ packages:
       '@redis/client': ^1.0.0
     dependencies:
       '@redis/client': 1.5.9
+    dev: true
 
   /@redis/time-series@1.0.5(@redis/client@1.5.9):
     resolution: {integrity: sha512-IFjIgTusQym2B5IZJG3XKr5llka7ey84fw/NOYqESP5WUfQs9zz1ww/9+qoz4ka/S6KcGBodzlCeZ5UImKbscg==}
@@ -676,6 +687,7 @@ packages:
       '@redis/client': ^1.0.0
     dependencies:
       '@redis/client': 1.5.9
+    dev: true
 
   /@scure/base@1.1.1:
     resolution: {integrity: sha512-ZxOhsSyxYwLJj3pLZCefNitxsj093tb2vq90mp2txoYeBqbcjDjqFhyM8eUjq/uFm6zJ+mUuqxlS2FkuSY1MTA==}
@@ -727,6 +739,10 @@ packages:
 
   /@tsconfig/node16@1.0.4:
     resolution: {integrity: sha512-vxhUy4J8lyeyinH7Azl1pdd43GJhZH/tP2weN8TntQblOY+A0XbT8DJk1/oCPuOOyg/Ja757rG0CgHcWC8OfMA==}
+
+  /@types/bluebird@3.5.38:
+    resolution: {integrity: sha512-yR/Kxc0dd4FfwtEoLZMoqJbM/VE/W7hXn/MIjb+axcwag0iFmSPK7OBUZq1YWLynJUoWQkfUrI7T0HDqGApNSg==}
+    dev: true
 
   /@types/bn.js@5.1.1:
     resolution: {integrity: sha512-qNrYbZqMx0uJAfKnKclPh+dTwK33KfLHYqtyODwd5HnXOjnkhc4qgn3BrK6RWyGZm5+sIFE7Q7Vz6QQtJB7w7g==}
@@ -784,6 +800,12 @@ packages:
     resolution: {integrity: sha512-/K3ds8TRAfBvi5vfjuz8y6+GiAYBZ0x4tXv1Av6CWBWn0IlADc+ZX9pMq7oU0fNQPnBwIZl3rmeLp6SBApbxSQ==}
     dev: true
 
+  /@types/ioredis@4.28.10:
+    resolution: {integrity: sha512-69LyhUgrXdgcNDv7ogs1qXZomnfOEnSmrmMFqKgt1XMJxmoOSG/u3wYy13yACIfKuMJ8IhKgHafDO3sx19zVQQ==}
+    dependencies:
+      '@types/node': 20.5.7
+    dev: true
+
   /@types/lodash@4.14.197:
     resolution: {integrity: sha512-BMVOiWs0uNxHVlHBgzTIqJYmj+PgCo4euloGF+5m4okL3rEYzM2EEv78mw8zWSMM57dM7kVIgJ2QDvwHSoCI5g==}
     dev: true
@@ -830,11 +852,25 @@ packages:
     resolution: {integrity: sha512-uvjYcIvPGAIJvnRT3y6jacP1Qqs3hNQLBeKDvDtJOh5ADISsMsMJK15WzP++cfRfAwb1ZafAXwC3YYC/uKAENQ==}
     dev: true
 
+  /@types/redis@2.8.32:
+    resolution: {integrity: sha512-7jkMKxcGq9p242exlbsVzuJb57KqHRhNl4dHoQu2Y5v9bCAbtIXXH0R3HleSQW4CTOqpHIYUW3t6tpUj4BVQ+w==}
+    dependencies:
+      '@types/node': 20.5.7
+    dev: true
+
   /@types/redis@4.0.11:
     resolution: {integrity: sha512-bI+gth8La8Wg/QCR1+V1fhrL9+LZUSWfcqpOj2Kc80ZQ4ffbdL173vQd5wovmoV9i071FU9oP2g6etLuEwb6Rg==}
     deprecated: This is a stub types definition. redis provides its own type definitions, so you do not need this installed.
     dependencies:
       redis: 4.6.8
+    dev: true
+
+  /@types/redlock@4.0.4:
+    resolution: {integrity: sha512-1Q2cbSmuGQzqowWDVXkSDsj96muMSs1RiDBDHqSCiycyrpvNcMkmGZRaVrDgnbiL/YWXh3DAlKplAtIO4rzV7g==}
+    dependencies:
+      '@types/bluebird': 3.5.38
+      '@types/ioredis': 4.28.10
+      '@types/redis': 2.8.32
     dev: true
 
   /@types/send@0.17.1:
@@ -1815,6 +1851,7 @@ packages:
   /generic-pool@3.9.0:
     resolution: {integrity: sha512-hymDOu5B53XvN4QT9dBmZxPX4CWhBPPLguTZ9MMFeFa/Kg0xWVfylOVNlJji/E7yTZWFd/q9GO5TxDLq156D7g==}
     engines: {node: '>= 4'}
+    dev: true
 
   /get-intrinsic@1.2.1:
     resolution: {integrity: sha512-2DcsyfABl+gVHEfCOaTrWgyt+tb6MSEGmKq+kI5HwLbIYgjgmMcV8KQ41uaKz1xxUcn9tJtgFbQUEVcEbd0FYw==}
@@ -2578,6 +2615,14 @@ packages:
       '@redis/json': 1.0.4(@redis/client@1.5.9)
       '@redis/search': 1.1.3(@redis/client@1.5.9)
       '@redis/time-series': 1.0.5(@redis/client@1.5.9)
+    dev: true
+
+  /redlock@5.0.0-beta.2:
+    resolution: {integrity: sha512-2RDWXg5jgRptDrB1w9O/JgSZC0j7y4SlaXnor93H/UJm/QyDiFgBKNtrh0TI6oCXqYSaSoXxFh6Sd3VtYfhRXw==}
+    engines: {node: '>=12'}
+    dependencies:
+      node-abort-controller: 3.1.1
+    dev: false
 
   /regenerator-runtime@0.14.0:
     resolution: {integrity: sha512-srw17NI0TUWHuGa5CFGGmhfNIeja30WMBfbslPNhf6JrqQlLN5gcrvig1oqPxiVaXb0oW0XRKtH6Nngs5lKCIA==}

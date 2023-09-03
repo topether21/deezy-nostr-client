@@ -4,7 +4,6 @@ import { Job, Queue, Worker } from 'bullmq';
 import { getAuctions } from './../services/nosft';
 import { Auction } from './../types';
 
-import { NosftEvent } from './../types';
 import { updateAuctions } from './../cache';
 
 export const auctionsConfig = {
@@ -17,7 +16,7 @@ export const auctionQueue = new Queue(auctionsConfig.name, {
 
 export const updateAuctionsWorker = new Worker(
   auctionQueue.name,
-  async ({ data }: Job<NosftEvent>) => {
+  async ({ data }: Job<any>) => {
     if (!data) return;
 
     try {

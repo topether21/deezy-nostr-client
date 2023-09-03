@@ -2,7 +2,7 @@ import { nostrPool } from './nostr-relay';
 
 import { nostrConfig, nostrQueue } from './queues/nostr';
 import cron from 'node-cron';
-import { clearAllLists, db, isQueueActive, pub, sub } from './cache';
+import { clearAllLists, isQueueActive } from './cache';
 import { MIN_NON_TEXT_ITEMS } from './config';
 
 type Subscription = {
@@ -53,7 +53,7 @@ export const onSaleCron = async () => {
       const isActive = await isQueueActive();
       if (!isActive) {
         console.log('[Queue is not active], restart queue...');
-        currentSubscriptions.forEach(() => sub.unsubscribe());
+        currentSubscriptions.forEach((sub) => sub.cleanup());
         const { cleanup: newCleanupFunc } = subscribeToOnSale(20);
         currentSubscriptions = [];
         currentSubscriptions.push({ cleanup: newCleanupFunc });
@@ -68,13 +68,15 @@ export const onSaleCron = async () => {
 };
 
 export const initCache = async () => {
-  await Promise.all([pub.connect(), sub.connect(), db.connect()]);
+  try {
+    await clearAllLists();
 
-  await clearAllLists();
+    const { cleanup } = subscribeToOnSale(MIN_NON_TEXT_ITEMS);
 
-  const { cleanup } = subscribeToOnSale(MIN_NON_TEXT_ITEMS);
+    currentSubscriptions.push({ cleanup });
 
-  currentSubscriptions.push({ cleanup });
-
-  await onSaleCron();
+    await onSaleCron();
+  } catch (error) {
+    console.error(error);
+  }
 };

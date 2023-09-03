@@ -1,5 +1,5 @@
-// https://github.com/microsoft/TypeScript/issues/47663#issuecomment-1519138189
-import { createClient } from 'redis';
+import Redis from 'ioredis';
+import Redlock from 'redlock';
 import { formatAuction } from './services/nosft';
 import { Auction, NosftEvent, RawNostrEvent, ValidKeys } from './types';
 import { MAX_CAPACITY, MIN_NON_TEXT_ITEMS } from './config';
@@ -11,21 +11,26 @@ const AUCTION_KEY = 'auctions';
 
 const redisConfig = {
   ...auth,
-  socket: {
-    host: process.env.REDIS_HOST,
-    port: parseInt(process.env.REDIS_PORT || '17549'),
-  },
+  host: process.env.REDIS_HOST,
+  port: parseInt(process.env.REDIS_PORT || '17549'),
 };
 
-export const db = createClient(redisConfig);
+export const db = new Redis(redisConfig);
 
 const pub = db.duplicate();
 const sub = db.duplicate();
 
+const redlock = new Redlock([db as any, pub as any, sub as any], {
+  driftFactor: 0.01,
+  retryCount: 10,
+  retryDelay: 200,
+  retryJitter: 200,
+});
+
 export { pub, sub };
 
 // Function to generate a hash of a list of auctions
-const generateHash = (auctions: { score: number; value: string }[]) => {
+const generateHash = (auctions: (number | string)[]) => {
   const auctionsString = JSON.stringify(auctions);
   return crypto.createHash('sha256').update(auctionsString).digest('hex');
 };
@@ -33,10 +38,7 @@ const generateHash = (auctions: { score: number; value: string }[]) => {
 // We can do a better job here, but for now, we just check if the hash is the same
 // Adds a list of auctions to Redis, replacing the existing set
 export const updateAuctions = async (auctions: Auction[]) => {
-  const auctionsWithTimestamp: {
-    score: number;
-    value: string;
-  }[] = [];
+  const auctionsWithTimestamp: (number | string)[] = [];
 
   let updated = false; // Flag for added auction
 
@@ -62,10 +64,7 @@ export const updateAuctions = async (auctions: Auction[]) => {
     try {
       const auctionEvent = await formatAuction(latestNostrEvent);
 
-      auctionsWithTimestamp.push({
-        score: latestNostrEvent.created_at,
-        value: JSON.stringify(auctionEvent),
-      });
+      auctionsWithTimestamp.push(...[latestNostrEvent.created_at, JSON.stringify(auctionEvent)]);
     } catch (error) {
       console.error(error);
     }
@@ -87,7 +86,7 @@ export const updateAuctions = async (auctions: Auction[]) => {
 
   // Add all auctions to Redis sorted set in one go
   if (auctionsWithTimestamp.length > 0) {
-    await db.zAdd(AUCTION_KEY, auctionsWithTimestamp);
+    await db.zadd(AUCTION_KEY, ...auctionsWithTimestamp);
     updated = true;
   }
 
@@ -100,88 +99,78 @@ export const updateAuctions = async (auctions: Auction[]) => {
   }
 };
 
-async function acquireLock(key: string, timeout = 10000): Promise<boolean> {
-  const result = await db.set(key, 'lock', {
-    NX: true,
-    PX: timeout,
-  });
-  return result === 'OK';
-}
+export const addItemsAux = async (item: NosftEvent) => {
+  try {
+    const key = 'sorted_by_created_at_all';
+    const score = item.created_at;
 
-async function releaseLock(key: string): Promise<number> {
-  return await db.del(key);
-}
+    let isAdded = false; // Flag for added item
+    let isRemoved = false; // Flag for removed item
+
+    const existingItemTimestamp = await db.hget(key + '_hash', item.output);
+
+    const multi = db.multi();
+
+    if (existingItemTimestamp && parseInt(existingItemTimestamp) >= score) {
+      // The existing item is newer or the same, so skip
+      return;
+    }
+
+    if (existingItemTimestamp) {
+      // Remove the older item
+      const existingItems = await db.zrangebyscore(key, existingItemTimestamp, existingItemTimestamp);
+      multi.zrem(key, existingItems[0]).hdel(key + '_hash', item.output);
+      isRemoved = true;
+    }
+
+    // Add the new item
+    multi
+      .zadd(key, ...[parseInt(score.toString()), JSON.stringify(item)])
+      .hset(key + '_hash', item.output, score.toString());
+
+    await multi.exec();
+
+    isAdded = true;
+
+    // Check for max capacity and remove the oldest item if needed
+    const setSize = await db.zcount(key, '-inf', '+inf');
+    if (setSize > MAX_CAPACITY) {
+      const oldestItems = await db.zrange(key, 0, 0);
+      if (oldestItems.length > 0) {
+        await db.multi().zrem(key, oldestItems[0]).exec();
+        isRemoved = true;
+      }
+    }
+
+    // Publish events based on flags
+    if (isAdded) {
+      pub.publish('update_sets_on_sale', 'add');
+      await updateLastPushTimestamp();
+      console.log('Published [add][onsale] event to update_sets');
+    }
+
+    if (isRemoved) {
+      pub.publish('update_sets_on_sale', 'remove');
+      await updateLastPushTimestamp();
+      console.log('Published [remove][onsale] event to update_sets');
+    }
+  } catch (err) {
+    console.error(err);
+    throw new Error('Error adding item to cache');
+  }
+};
 
 export const addOnSaleItem = async (item: NosftEvent) => {
   const lockKey = 'addOnSaleItemLock';
 
-  // Try to acquire a lock
-  if (await acquireLock(lockKey)) {
-    try {
-      const key = 'sorted_by_created_at_all';
-      const score = item.created_at;
-
-      let isAdded = false; // Flag for added item
-      let isRemoved = false; // Flag for removed item
-
-      const existingItemTimestamp = await db.hGet(key + '_hash', item.output);
-
-      const multi = db.multi();
-
-      if (existingItemTimestamp && parseInt(existingItemTimestamp) >= score) {
-        // The existing item is newer or the same, so skip
-        return;
-      }
-
-      if (existingItemTimestamp) {
-        // Remove the older item
-        const existingItems = await db.zRangeByScore(key, existingItemTimestamp, existingItemTimestamp);
-        multi.zRem(key, existingItems[0]).hDel(key + '_hash', item.output);
-        isRemoved = true;
-      }
-
-      // Add the new item
-      multi
-        .zAdd(key, [
-          {
-            score: parseInt(score.toString()),
-            value: JSON.stringify(item),
-          },
-        ])
-        .hSet(key + '_hash', item.output, score.toString());
-
-      await multi.exec();
-
-      isAdded = true;
-
-      // Check for max capacity and remove the oldest item if needed
-      const setSize = await db.zCount(key, '-inf', '+inf');
-      if (setSize > MAX_CAPACITY) {
-        const oldestItems = await db.zRange(key, 0, 0);
-        if (oldestItems.length > 0) {
-          await db.multi().zRem(key, oldestItems[0]).exec();
-          isRemoved = true;
-        }
-      }
-
-      // Publish events based on flags
-      if (isAdded) {
-        pub.publish('update_sets_on_sale', 'add');
-        await updateLastPushTimestamp();
-        console.log('Published [add][onsale] event to update_sets');
-      }
-
-      if (isRemoved) {
-        pub.publish('update_sets_on_sale', 'remove');
-        await updateLastPushTimestamp();
-        console.log('Published [remove][onsale] event to update_sets');
-      }
-    } finally {
-      // Always release the lock
-      await releaseLock(lockKey);
-    }
-  } else {
+  let lock = await redlock.acquire([lockKey], 5000);
+  try {
+    addItemsAux(item);
+  } catch (err) {
     console.log('Could not acquire lock');
+  } finally {
+    // Release the lock.
+    await lock.unlock();
   }
 };
 
@@ -191,11 +180,11 @@ export const keys = ['sorted_by_created_at_all', 'sorted_by_created_at_no_text']
 
 export const removeItem = async (item: NosftEvent) => {
   for (const key of keys) {
-    await db.zRem(key, JSON.stringify(item));
-    await db.hDel(key + '_hash', item.output);
+    await db.zrem(key, JSON.stringify(item));
+    await db.hdel(key + '_hash', item.output);
   }
 
-  const nonTextCount = await db.zCount('sorted_by_created_at_no_text', '-inf', '+inf');
+  const nonTextCount = await db.zcount('sorted_by_created_at_no_text', '-inf', '+inf');
   if (nonTextCount < MIN_NON_TEXT_ITEMS) {
     loadMoreItems();
   }
@@ -218,11 +207,9 @@ export const fetchTopMarketplaceItems = async (
 
   // Fetch items
   if (order === 'ASC') {
-    items = await db.zRange(key, 0, count);
+    items = await db.zrange(key, 0, count);
   } else {
-    items = await db.zRange(key, 0, count, {
-      REV: true,
-    });
+    items = await db.zrevrange(key, 0, count);
   }
 
   return items.map((item: string) => JSON.parse(item));
@@ -258,16 +245,14 @@ export const fetchTopAuctionItems = async (order: 'ASC' | 'DESC' = 'DESC', limit
 
   // Fetch items
   if (order === 'ASC') {
-    items = await db.zRange(AUCTION_KEY, 0, count);
+    items = await db.zrange(AUCTION_KEY, 0, count);
   } else {
-    items = await db.zRange(AUCTION_KEY, 0, count, {
-      REV: true,
-    });
+    items = await db.zrevrange(AUCTION_KEY, 0, count);
   }
 
   return items.map((item: string) => JSON.parse(item));
 };
 
 export const clearAllLists = async () => {
-  await db.flushAll();
+  await db.flushall();
 };

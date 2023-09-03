@@ -46,19 +46,36 @@ const sendMessageToChannel = async (io: Server, channel: OfferChannel, operation
 };
 
 export const setupSocketServer = async (io: Server) => {
-  const listenerOnSale = async (message: string, channel: string) => {
-    console.log('[Subscriber]... getting sale updates', { message, channel });
-    await sendMessageToChannel(io, 'onSale', message);
-  };
+  sub.subscribe('update_sets_on_sale', (err, count) => {
+    if (err) {
+      console.error('Failed to subscribe: %s', err.message);
+    } else {
+      console.log(
+        `[update_sets_on_sale] Subscribed successfully! This client is currently subscribed to ${count} channels.`
+      );
+    }
+  });
 
-  await sub.subscribe('update_sets_on_sale', listenerOnSale);
+  sub.subscribe('update_sets_on_auction', (err, count) => {
+    if (err) {
+      console.error('Failed to subscribe: %s', err.message);
+    } else {
+      console.log(
+        `[update_sets_on_auction] Subscribed successfully! This client is currently subscribed to ${count} channels.`
+      );
+    }
+  });
 
-  const listenerOnAuction = async (message: string, channel: string) => {
-    console.log('[Subscriber]... getting auction updates', { message, channel });
-    await sendMessageToChannel(io, 'onAuction', message);
-  };
-
-  await sub.subscribe('update_sets_on_auction', listenerOnAuction);
+  sub.on('message', async (channel: string, message: string) => {
+    if (channel === 'update_sets_on_sale') {
+      console.log('[Subscriber]... getting sale updates', { message, channel });
+      await sendMessageToChannel(io, 'onSale', message);
+    }
+    if (channel === 'update_sets_on_auction') {
+      console.log('[Subscriber]... getting auction updates', { message, channel });
+      await sendMessageToChannel(io, 'onAuction', message);
+    }
+  });
 
   io.on('connection', (socket: Socket) => {
     console.log('New client connected:', socket.id);
