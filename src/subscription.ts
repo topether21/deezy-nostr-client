@@ -55,7 +55,7 @@ export const onSalCron = async () => {
       if (!isActive) {
         console.log('[Queue is not active], restart queue...');
         currentSubscriptions.forEach(() => sub.unsubscribe());
-        const { cleanup: newCleanupFunc } = subscribeToOnSale(10);
+        const { cleanup: newCleanupFunc } = subscribeToOnSale(20);
         currentSubscriptions = [];
         currentSubscriptions.push({ cleanup: newCleanupFunc });
       } else {
