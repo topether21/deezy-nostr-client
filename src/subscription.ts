@@ -9,9 +9,7 @@ import { Auction } from 'types';
 export const subscribeToOnSale = (limitSaleResults: number = 100) => {
   const orderSubscription = nostrPool.subscribeOrders({ limit: limitSaleResults }).subscribe(async (event) => {
     try {
-      nostrQueue.add(nostrConfig.name, event, {
-        jobId: event.id,
-      });
+      nostrQueue.add(nostrConfig.name, event);
     } catch (error) {
       console.error(error);
     }
