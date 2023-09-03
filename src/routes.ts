@@ -84,6 +84,7 @@ router.get('/api/v1/marketplace/clean', async (_req: Request, res: Response) => 
 
 router.get('/api/v1/reboot', async (_req: Request, res: Response) => {
   try {
+    await clearAllLists();
     await initCache();
     res.send({
       status: 'ok',

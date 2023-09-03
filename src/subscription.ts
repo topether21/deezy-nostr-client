@@ -59,7 +59,6 @@ export const onSaleCron = async () => {
 
 export const initCache = async () => {
   try {
-    await clearAllLists();
     cleanupSubscriptions();
     const { cleanup } = subscribeToOnSale(MIN_NON_TEXT_ITEMS);
     currentSubscriptions.push({ cleanup });
