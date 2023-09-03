@@ -54,6 +54,8 @@ export const nostrWorker = new Worker(
 
     if (!inscription) return;
 
+    console.log('----> [Adding inscription to queue]...', inscription.output);
+
     await addOnSaleQueue.add(addOnSaleQueue.name, inscription);
 
     return {

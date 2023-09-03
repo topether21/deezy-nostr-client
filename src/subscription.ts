@@ -13,6 +13,7 @@ type Subscription = {
 let currentSubscriptions: Subscription[] = [];
 
 export const subscribeToOnSale = (limitSaleResults: number = 100) => {
+  console.log('------> [subscribeToOnSale]');
   const orderSubscription = nostrPool.subscribeOrders({ limit: limitSaleResults }).subscribe(async (event) => {
     try {
       nostrQueue.add(nostrConfig.name, event);
@@ -57,14 +58,14 @@ export const onSalCron = async () => {
         const { cleanup: newCleanupFunc } = subscribeToOnSale(10);
         currentSubscriptions = [];
         currentSubscriptions.push({ cleanup: newCleanupFunc });
+      } else {
+        console.log('[Queue is active]...');
       }
-      console.log('[Queue is active]...');
     } catch (error) {
       console.error('[error]', (error as Error).message);
     }
   };
   cron.schedule('0 * * * * *', cronJob); // each minute
-  cronJob();
 };
 
 export const initCache = async () => {
