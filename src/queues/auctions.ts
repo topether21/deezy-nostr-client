@@ -13,14 +13,13 @@ export const auctionQueue = new Queue(auctionsConfig.name, {
 
 export const updateAuctionsWorker = new Worker(
   auctionQueue.name,
-  async ({ data }: Job<any>) => {
+  async ({ data }: Job) => {
     if (!data) return;
 
     await syncAuctions();
 
     return {
       status: 'ok',
-      ...data,
     };
   },
   {
