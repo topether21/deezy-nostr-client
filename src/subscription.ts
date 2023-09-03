@@ -2,7 +2,7 @@ import { nostrPool } from './nostr-relay';
 
 import { nostrConfig, nostrQueue } from './queues/nostr';
 import cron from 'node-cron';
-import { clearAllLists, isQueueActive } from './cache';
+import { isQueueActive } from './cache';
 import { MIN_NON_TEXT_ITEMS } from './config';
 import { syncAuctions } from './queues/shared';
 
