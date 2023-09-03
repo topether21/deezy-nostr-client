@@ -1,9 +1,0 @@
-version: 1.0
-environment:
-  variables:
-    PORT: '3000'
-    MICROSERVICE_KEY: 'ABC'
-    REDIS_HOST: 'redis-19678.c238.us-central1-2.gce.cloud.redislabs.com'
-    REDIS_PORT: '19678'
-    REDIS_TYPE: 'external'
-    REDIS_PASSWORD: 'SJyufONlCGmuQgF8QAGEtuthqtc07LXH'

@@ -16,7 +16,10 @@ export const subscribeToOnSale = (limitSaleResults: number = 100) => {
   console.log('------> [subscribeToOnSale]');
   const orderSubscription = nostrPool.subscribeOrders({ limit: limitSaleResults }).subscribe(async (event) => {
     try {
-      nostrQueue.add(nostrConfig.name, event);
+      nostrQueue.add(nostrConfig.name, event, {
+        removeOnComplete: true,
+        removeOnFail: true,
+      });
     } catch (error) {
       console.error(error);
     }

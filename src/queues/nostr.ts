@@ -62,7 +62,10 @@ export const nostrWorker = new Worker(
 
     // console.log('----> [Adding inscription to queue]...', inscription.output);
 
-    await addOnSaleQueue.add(addOnSaleQueue.name, inscription);
+    await addOnSaleQueue.add(addOnSaleQueue.name, inscription, {
+      removeOnComplete: true,
+      removeOnFail: true,
+    });
 
     return {
       status: 'ok',

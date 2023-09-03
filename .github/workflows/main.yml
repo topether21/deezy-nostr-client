@@ -1,19 +1,28 @@
+### https://github.com/awslabs/amazon-app-runner-deploy
+### https://aws.amazon.com/blogs/containers/deploy-applications-in-aws-app-runner-with-github-actions/
+### https://github.com/awslabs/amazon-app-runner-deploy/pull/41/files
+### https://github.com/marketplace/actions/aws-ssm-build-secrets-for-github-actions
+
 name: Deploy to AWS App Runner
 
 on:
   push:
     branches:
-      - main # Set a branch to deploy from
+      - dev
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
 
-      # Setup AWS CLI
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -21,29 +30,95 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      # Upload to S3
-      - name: Upload to S3
-        run: |
-          aws s3 mb s3://deezy-nostr-client/ || echo "Bucket exists"
-          aws s3 cp apprunner-config.yml s3://deezy-nostr-client/
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
 
-      # Create ECR repository if it doesn't exist
-      - name: Create ECR repository
+      - name: Build, tag, and push image to Amazon ECR
         run: |
-          aws ecr describe-repositories --repository-names deezy-nostr-client || aws ecr create-repository --repository-name deezy-nostr-client
+          docker build -t 729989983411.dkr.ecr.us-east-1.amazonaws.com/deezy-nostr-client:${{ github.sha }} .
+          docker push 729989983411.dkr.ecr.us-east-1.amazonaws.com/deezy-nostr-client:${{ github.sha }}
+          echo "IMAGE_ID=729989983411.dkr.ecr.us-east-1.amazonaws.com/deezy-nostr-client:${{ github.sha }}" >> $GITHUB_ENV
 
-      # Build and push Docker image to ECR
-      - name: Build and push Docker image
+      - name: Remove old images from Amazon ECR
         run: |
-          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 729989983411.dkr.ecr.us-east-1.amazonaws.com
-          docker build -t deezy-nostr-client .
-          docker tag deezy-nostr-client:latest 729989983411.dkr.ecr.us-east-1.amazonaws.com/deezy-nostr-client:latest
-          docker push 729989983411.dkr.ecr.us-east-1.amazonaws.com/deezy-nostr-client:latest
+          repository_name=deezy-nostr-client
+          image_ids=$(aws ecr list-images --repository-name $repository_name --query 'imageIds[?type(imageTag)!=`null`]' --output json | jq -r '.[] | "\(.imageDigest) \(.imageTag)"')
+          for image_id in $image_ids; do
+            digest=$(echo $image_id | cut -d' ' -f1)
+            tag=$(echo $image_id | cut -d' ' -f2)
+            if [ "$tag" != "${{ github.sha }}" ]; then
+              aws ecr batch-delete-image --repository-name $repository_name --image-ids imageDigest=$digest
+            fi
+          done
 
-      # Deploy to App Runner with environment variables
-      - name: Deploy to AWS App Runner
+      - uses: 'marvinpinto/action-inject-ssm-secrets@latest'
+        with:
+          ssm_parameter: 'REDIS_PASSWORD'
+          env_variable_name: 'REDIS_PASSWORD'
+
+      - uses: 'marvinpinto/action-inject-ssm-secrets@latest'
+        with:
+          ssm_parameter: 'REDIS_PORT'
+          env_variable_name: 'REDIS_PORT'
+
+      - uses: 'marvinpinto/action-inject-ssm-secrets@latest'
+        with:
+          ssm_parameter: 'REDIS_HOST'
+          env_variable_name: 'REDIS_HOST'
+
+      - uses: 'marvinpinto/action-inject-ssm-secrets@latest'
+        with:
+          ssm_parameter: 'REDIS_TYPE'
+          env_variable_name: 'REDIS_TYPE'
+
+      - name: Get secrets
+        id: secrets
         run: |
-          aws apprunner create-service \
-            --service-name deezy-nostr \
-            --source-configuration "RepositoryUrl=729989983411.dkr.ecr.us-east-1.amazonaws.com/deezy-nostr-client,ImageTag=latest" \
-            --instance-configuration file://instance-config.json
+          echo "Using Redis at host $REDIS_HOST and port $REDIS_PORT"
+          echo "::set-output name=REDIS_PASSWORD::${REDIS_PASSWORD}"
+          echo "::set-output name=REDIS_PORT::${REDIS_PORT}"
+          echo "::set-output name=REDIS_HOST::${REDIS_HOST}"
+          echo "::set-output name=REDIS_TYPE::${REDIS_TYPE}"
+
+      - name: Deploy to App Runner Image
+        uses: awslabs/amazon-app-runner-deploy@main
+        env:
+          REDIS_PASSWORD: ${{ env.REDIS_PASSWORD }}
+          REDIS_HOST: ${{ env.REDIS_HOST }}
+          REDIS_PORT: ${{ env.REDIS_PORT }}
+          REDIS_TYPE: ${{ env.REDIS_TYPE }}
+          SERVER_PORT: 80
+          PORT: 80
+          MICROSERVICE_KEY: xxx
+          HOSTNAME: 0.0.0.0
+          MIN_NON_TEXT_ITEMS: 500
+          MAX_CAPACITY: 1000
+
+        with:
+          service: deezy-nostr
+          image: ${{ env.IMAGE_ID }}
+          access-role-arn: arn:aws:iam::729989983411:role/app-runner-service-role
+          region: us-east-1
+          cpu: 0.25
+          memory: 0.5
+          wait-for-service-stability-seconds: 1800
+          instance-role-arn: ${{ secrets.INSTANCE_ROLE_ARN }}
+          # copy-secret-env-vars: |
+          #   REDIS_PASSWORD
+          #   REDIS_HOST
+          #   REDIS_PORT
+          #   REDIS_TYPE
+          copy-env-vars: |
+            PORT
+            MICROSERVICE_KEY
+            HOSTNAME
+            MIN_NON_TEXT_ITEMS
+            MAX_CAPACITY
+            SERVER_PORT
+            REDIS_PASSWORD
+            REDIS_HOST
+            REDIS_PORT
+            REDIS_TYPE
+
+      - name: App Runner URL
+        run: echo "App Runner URL ${{ steps.deploy-apprunner.outputs.service-url }}"
