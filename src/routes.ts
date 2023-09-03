@@ -3,6 +3,7 @@ import { clearAllLists, fetchTopAuctionItems, fetchTopMarketplaceItems, keys as 
 import express, { Router, Request, Response } from 'express';
 import { MIN_NON_TEXT_ITEMS } from './config';
 import { isTextInscription } from './utils';
+import { initCache } from './subscription';
 
 const router: Router = express.Router();
 
@@ -77,6 +78,18 @@ router.get('/api/v1/marketplace/clean', async (_req: Request, res: Response) => 
     });
   } catch (e) {
     console.error('[/api/v1/marketplace/clean][error]', e);
+    res.sendStatus(500);
+  }
+});
+
+router.get('/api/v1/reboot', async (_req: Request, res: Response) => {
+  try {
+    await initCache();
+    res.send({
+      status: 'ok',
+    });
+  } catch (e) {
+    console.error('[reboot][error]', e);
     res.sendStatus(500);
   }
 });

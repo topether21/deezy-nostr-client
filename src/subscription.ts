@@ -4,6 +4,7 @@ import { nostrConfig, nostrQueue } from './queues/nostr';
 import cron from 'node-cron';
 import { clearAllLists, isQueueActive } from './cache';
 import { MIN_NON_TEXT_ITEMS } from './config';
+import { syncAuctions } from './queues/shared';
 
 type Subscription = {
   cleanup: () => void;
@@ -32,20 +33,9 @@ export const subscribeToOnSale = (limitSaleResults: number = 100) => {
   };
 };
 
-// export const subscribeToOnAuctions = () => {
-//   const cronJob = async () => {
-//     try {
-//       const auctions = (await getAuctions()).filter((a) => a.status === 'RUNNING') as Auction[];
-//       await updateAuctions(auctions);
-//       console.log('Auctions:', auctions.length);
-//     } catch (error) {
-//       console.error('[error]', (error as Error).message);
-//     }
-//   };
-//   // create a cron job to fetch auctions every 15 seconds
-//   cron.schedule('*/15 * * * * *', cronJob);
-//   cronJob();
-// };
+const cleanupSubscriptions = () => {
+  currentSubscriptions.forEach((sub) => sub.cleanup());
+};
 
 export const onSaleCron = async () => {
   const cronJob = async () => {
@@ -53,7 +43,7 @@ export const onSaleCron = async () => {
       const isActive = await isQueueActive();
       if (!isActive) {
         console.log('[Queue is not active], restart queue...');
-        currentSubscriptions.forEach((sub) => sub.cleanup());
+        cleanupSubscriptions();
         const { cleanup: newCleanupFunc } = subscribeToOnSale(20);
         currentSubscriptions = [];
         currentSubscriptions.push({ cleanup: newCleanupFunc });
@@ -70,11 +60,10 @@ export const onSaleCron = async () => {
 export const initCache = async () => {
   try {
     await clearAllLists();
-
+    cleanupSubscriptions();
     const { cleanup } = subscribeToOnSale(MIN_NON_TEXT_ITEMS);
-
     currentSubscriptions.push({ cleanup });
-
+    await syncAuctions();
     await onSaleCron();
   } catch (error) {
     console.error(error);
