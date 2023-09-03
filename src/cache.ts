@@ -167,11 +167,13 @@ export const addOnSaleItem = async (item: NosftEvent) => {
       // Publish events based on flags
       if (isAdded) {
         pub.publish('update_sets_on_sale', 'add');
+        await updateLastPushTimestamp();
         console.log('Published [add][onsale] event to update_sets');
       }
 
       if (isRemoved) {
         pub.publish('update_sets_on_sale', 'remove');
+        await updateLastPushTimestamp();
         console.log('Published [remove][onsale] event to update_sets');
       }
     } finally {
@@ -225,6 +227,28 @@ export const fetchTopMarketplaceItems = async (
 
   return items.map((item: string) => JSON.parse(item));
 };
+
+// Update this timestamp whenever the producer pushes something into the sorted set
+export async function updateLastPushTimestamp() {
+  const currentTimestamp = Date.now();
+  await db.set('last_push_timestamp', currentTimestamp.toString());
+}
+
+// Check the timestamp to see if anything has been pushed in the last minute
+export async function isQueueActive() {
+  const lastPushTimestamp = await db.get('last_push_timestamp');
+  if (lastPushTimestamp) {
+    const currentTime = Date.now();
+    const timeDifference = currentTime - Number(lastPushTimestamp);
+    if (timeDifference > 60000) {
+      // 60000ms = 1 minute
+      console.log('No activity from the producer in the last minute.');
+      return false;
+    }
+    return true;
+  }
+  return false;
+}
 
 export const fetchTopAuctionItems = async (order: 'ASC' | 'DESC' = 'DESC', limit?: number): Promise<NosftEvent[]> => {
   let items: string[] = [];

@@ -2,9 +2,15 @@ import { nostrPool } from './nostr-relay';
 import { getAuctions } from './services/nosft';
 import { nostrConfig, nostrQueue } from './queues/nostr';
 import cron from 'node-cron';
-import { clearAllLists, db, pub, sub, updateAuctions } from './cache';
+import { clearAllLists, db, isQueueActive, pub, sub, updateAuctions } from './cache';
 import { MIN_NON_TEXT_ITEMS } from './config';
 import { Auction } from 'types';
+
+type Subscription = {
+  cleanup: () => void;
+};
+
+let currentSubscriptions: Subscription[] = [];
 
 export const subscribeToOnSale = (limitSaleResults: number = 100) => {
   const orderSubscription = nostrPool.subscribeOrders({ limit: limitSaleResults }).subscribe(async (event) => {
@@ -41,11 +47,36 @@ export const subscribeToOnAuctions = () => {
   cronJob();
 };
 
+export const onSalCron = async () => {
+  const cronJob = async () => {
+    try {
+      const isActive = await isQueueActive();
+      if (!isActive) {
+        console.log('[Queue is not active], restart queue...');
+        currentSubscriptions.forEach(() => sub.unsubscribe());
+        const { cleanup: newCleanupFunc } = subscribeToOnSale(10);
+        currentSubscriptions = [];
+        currentSubscriptions.push({ cleanup: newCleanupFunc });
+      }
+      console.log('[Queue is active]...');
+    } catch (error) {
+      console.error('[error]', (error as Error).message);
+    }
+  };
+  cron.schedule('0 * * * * *', cronJob); // each minute
+  cronJob();
+};
+
 export const initCache = async () => {
   await Promise.all([pub.connect(), sub.connect(), db.connect()]);
 
   await clearAllLists();
 
-  subscribeToOnSale(MIN_NON_TEXT_ITEMS);
   subscribeToOnAuctions();
+
+  const { cleanup } = subscribeToOnSale(MIN_NON_TEXT_ITEMS);
+
+  currentSubscriptions.push({ cleanup });
+
+  await onSalCron();
 };
