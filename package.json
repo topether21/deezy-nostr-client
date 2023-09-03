@@ -1,6 +1,6 @@
 {
   "name": "deezy-nostr-client",
-  "version": "1.0.34",
+  "version": "1.0.35",
   "description": "",
   "private": true,
   "main": "./dist/index.js",
@@ -50,8 +50,9 @@
     "json-diff": "^1.0.6",
     "lodash": "^4.17.21",
     "node-cron": "^3.0.2",
+    "node-emoji": "^2.1.0",
     "node-fetch": "3.3",
-    "nosft-core": "^2.4.2",
+    "nosft-core": "^2.4.3",
     "nostr-tools": "^1.14.2",
     "redlock": "5.0.0-beta.2",
     "rxjs": "^7.8.1",

@@ -16,8 +16,9 @@ export const syncAuctions = async () => {
   try {
     console.log('[syncAuctions]');
     const auctions = (await getAuctions()).filter((a) => a.status === 'RUNNING') as Auction[];
-    await updateAuctions(auctions);
     console.log('Auctions:', auctions.length);
+    await updateAuctions(auctions);
+    return auctions;
   } catch (error) {
     console.error('[error][syncAuctions]', (error as Error).message);
   }

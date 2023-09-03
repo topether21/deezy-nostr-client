@@ -160,17 +160,17 @@ export const addOnSaleItem = async (item: NosftEvent) => {
   let lock;
   try {
     lock = await redlock.acquire([lockKey], 5000);
-    console.log('Acquired lock, performing operation...');
+    // console.log('Acquired lock, performing operation...');
     await addItemsAux(item); // assuming this is an async function
   } catch (err) {
-    console.log('Could not acquire lock', err);
+    // console.log('Could not acquire lock', (err as Error).message);
   } finally {
     // Release the lock.
     if (lock) {
       try {
-        //@ts-ignore
+        // @ts-ignore
         await lock.release();
-        console.log('Releasing lock...');
+        // console.log('Releasing lock...');
       } catch (unlockError) {
         console.log('Error releasing lock', unlockError);
       }

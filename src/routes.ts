@@ -4,6 +4,7 @@ import express, { Router, Request, Response } from 'express';
 import { MIN_NON_TEXT_ITEMS } from './config';
 import { isTextInscription } from './utils';
 import { initCache } from './subscription';
+import { syncAuctions } from './queues/shared';
 
 const router: Router = express.Router();
 
@@ -69,6 +70,7 @@ router.get('/api/v1/home', async (_req: Request, res: Response) => {
   }
 });
 
+// INTERNAL USE ONLY
 router.get('/api/v1/marketplace/clean', async (_req: Request, res: Response) => {
   try {
     const marketplace = await clearAllLists();
@@ -82,6 +84,7 @@ router.get('/api/v1/marketplace/clean', async (_req: Request, res: Response) => 
   }
 });
 
+// INTERNAL USE ONLY
 router.get('/api/v1/reboot', async (_req: Request, res: Response) => {
   try {
     await clearAllLists();
@@ -91,6 +94,21 @@ router.get('/api/v1/reboot', async (_req: Request, res: Response) => {
     });
   } catch (e) {
     console.error('[reboot][error]', e);
+    res.sendStatus(500);
+  }
+});
+
+// INTERNAL USE ONLY
+router.get('/api/v1/auctions/sync', async (_req: Request, res: Response) => {
+  try {
+    await syncAuctions();
+    const auctions = await fetchTopAuctionItems();
+    res.send({
+      status: 'ok',
+      auctions,
+    });
+  } catch (e) {
+    console.error('[/api/v1/auctions/sync][error]', e);
     res.sendStatus(500);
   }
 });

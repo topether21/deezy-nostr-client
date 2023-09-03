@@ -38,9 +38,9 @@ export const addOnSaleWorker = new Worker(
   async ({ data }: Job<NosftEvent>) => {
     if (!data) return;
 
-    console.log('----> [Adding on sale item]...', data.output);
+    // console.log('----> [Adding on sale item]...', data.output);
     await addOnSaleItem(data);
-    console.log('<<---- [Added on sale item]...', data.output);
+    // console.log('<<---- [Added on sale item]...', data.output);
 
     return {
       status: 'ok',
@@ -60,7 +60,7 @@ export const nostrWorker = new Worker(
 
     if (!inscription) return;
 
-    console.log('----> [Adding inscription to queue]...', inscription.output);
+    // console.log('----> [Adding inscription to queue]...', inscription.output);
 
     await addOnSaleQueue.add(addOnSaleQueue.name, inscription);
 

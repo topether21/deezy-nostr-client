@@ -3,13 +3,14 @@ import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { ExpressAdapter } from '@bull-board/express';
 import express, { Router } from 'express';
 import { nostrQueue } from './nostr';
+import { auctionQueue } from './auctions';
 
 const router: Router = express.Router();
 
 const serverAdapter = new ExpressAdapter();
 serverAdapter.setBasePath('/admin/queues');
 
-const queues = [nostrQueue].map((q) => new BullMQAdapter(q, { readOnlyMode: false }));
+const queues = [nostrQueue, auctionQueue].map((q) => new BullMQAdapter(q, { readOnlyMode: false }));
 
 createBullBoard({
   queues,
