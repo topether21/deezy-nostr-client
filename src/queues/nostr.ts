@@ -15,6 +15,19 @@ export const nostrQueue = new Queue(nostrConfig.name, {
   connection,
 });
 
+import axios from 'axios';
+
+const notifyTrackerService = async (event: RawNostrEvent) => {
+  try {
+    const url = `${process.env.TRACKER_WEBSITE}/inscription/${event.inscriptionId}/refresh`;
+    console.log('Sending HTTP POST request to', url);
+    const { data } = await axios.post(url);
+    console.log('Tracker service notified', data);
+  } catch (error) {
+    console.error('Error sending HTTP POST request', (error as Error).message);
+  }
+};
+
 export const buildInscription = async (event: RawNostrEvent): Promise<NosftEvent | undefined> => {
   const order = await getOrderInformation(event);
   const inscription: NosftEvent = await getInscriptionData(order);
@@ -56,6 +69,8 @@ export const addOnSaleWorker = new Worker(
 export const nostrWorker = new Worker(
   nostrQueue.name,
   async ({ data }: Job<RawNostrEvent>) => {
+    await notifyTrackerService(data);
+
     const inscription = await buildInscription(data);
 
     if (!inscription) return;

@@ -49,6 +49,7 @@ The service requires several environment variables to run correctly. These can b
 - `REDIS_TYPE`
 - `REDIS_PASSWORD`
 - `PORT`
+- `TRACKER_WEBHOOK`
 
 ## Docker Compose
 
