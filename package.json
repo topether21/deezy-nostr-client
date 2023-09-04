@@ -1,6 +1,10 @@
 {
   "name": "deezy-nostr-client",
+<<<<<<< HEAD
   "version": "1.0.89",
+=======
+  "version": "1.0.88",
+>>>>>>> 9c3f55e (wip: test pipeline v1.0.88)
   "description": "",
   "private": true,
   "main": "./dist/index.js",

@@ -5,123 +5,122 @@
 # ### https://github.com/aws/apprunner-roadmap/issues/96
 # ### https://github.com/aws/apprunner-roadmap/issues/13
 
-# name: Deploy to AWS App Runner
+name: Deploy to AWS App Runner
 
-# on:
-#   push:
-#     branches:
-#       - dev
+on:
+  push:
+    branches:
+      - dev
 
-# jobs:
-#   deploy:
-#     runs-on: ubuntu-latest
-#     permissions:
-#       id-token: write
-#       contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
 
-#     steps:
-#       - name: Checkout
-#         uses: actions/checkout@v2
-#         with:
-#           persist-credentials: false
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
 
-#       - name: Configure AWS credentials
-#         uses: aws-actions/configure-aws-credentials@v1
-#         with:
-#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-#           aws-region: us-east-1
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
 
-#       - name: Login to Amazon ECR
-#         uses: aws-actions/amazon-ecr-login@v1
+      - name: Build, tag, and push image to Amazon ECR
+        run: |
+          docker build -t 729989983411.dkr.ecr.us-east-1.amazonaws.com/deezy-nostr-client:${{ github.sha }} .
+          docker push 729989983411.dkr.ecr.us-east-1.amazonaws.com/deezy-nostr-client:${{ github.sha }}
+          echo "IMAGE_ID=729989983411.dkr.ecr.us-east-1.amazonaws.com/deezy-nostr-client:${{ github.sha }}" >> $GITHUB_ENV
 
-#       - name: Build, tag, and push image to Amazon ECR
-#         run: |
-#           docker build -t 729989983411.dkr.ecr.us-east-1.amazonaws.com/deezy-nostr-client:${{ github.sha }} .
-#           docker push 729989983411.dkr.ecr.us-east-1.amazonaws.com/deezy-nostr-client:${{ github.sha }}
-#           echo "IMAGE_ID=729989983411.dkr.ecr.us-east-1.amazonaws.com/deezy-nostr-client:${{ github.sha }}" >> $GITHUB_ENV
+      - name: Remove old images from Amazon ECR
+        run: |
+          repository_name=deezy-nostr-client
+          image_ids=$(aws ecr list-images --repository-name $repository_name --query 'imageIds[?type(imageTag)!=`null`]' --output json | jq -r '.[] | "\(.imageDigest) \(.imageTag)"')
+          for image_id in $image_ids; do
+            digest=$(echo $image_id | cut -d' ' -f1)
+            tag=$(echo $image_id | cut -d' ' -f2)
+            if [ "$tag" != "${{ github.sha }}" ]; then
+              aws ecr batch-delete-image --repository-name $repository_name --image-ids imageDigest=$digest
+            fi
+          done
 
-#       - name: Remove old images from Amazon ECR
-#         run: |
-#           repository_name=deezy-nostr-client
-#           image_ids=$(aws ecr list-images --repository-name $repository_name --query 'imageIds[?type(imageTag)!=`null`]' --output json | jq -r '.[] | "\(.imageDigest) \(.imageTag)"')
-#           for image_id in $image_ids; do
-#             digest=$(echo $image_id | cut -d' ' -f1)
-#             tag=$(echo $image_id | cut -d' ' -f2)
-#             if [ "$tag" != "${{ github.sha }}" ]; then
-#               aws ecr batch-delete-image --repository-name $repository_name --image-ids imageDigest=$digest
-#             fi
-#           done
+      - uses: 'marvinpinto/action-inject-ssm-secrets@latest'
+        with:
+          ssm_parameter: 'REDIS_PASSWORD'
+          env_variable_name: 'REDIS_PASSWORD'
 
-#       - uses: 'marvinpinto/action-inject-ssm-secrets@latest'
-#         with:
-#           ssm_parameter: 'REDIS_PASSWORD'
-#           env_variable_name: 'REDIS_PASSWORD'
+      - uses: 'marvinpinto/action-inject-ssm-secrets@latest'
+        with:
+          ssm_parameter: 'REDIS_PORT'
+          env_variable_name: 'REDIS_PORT'
 
-#       - uses: 'marvinpinto/action-inject-ssm-secrets@latest'
-#         with:
-#           ssm_parameter: 'REDIS_PORT'
-#           env_variable_name: 'REDIS_PORT'
+      - uses: 'marvinpinto/action-inject-ssm-secrets@latest'
+        with:
+          ssm_parameter: 'REDIS_HOST'
+          env_variable_name: 'REDIS_HOST'
 
-#       - uses: 'marvinpinto/action-inject-ssm-secrets@latest'
-#         with:
-#           ssm_parameter: 'REDIS_HOST'
-#           env_variable_name: 'REDIS_HOST'
+      - uses: 'marvinpinto/action-inject-ssm-secrets@latest'
+        with:
+          ssm_parameter: 'REDIS_TYPE'
+          env_variable_name: 'REDIS_TYPE'
 
-#       - uses: 'marvinpinto/action-inject-ssm-secrets@latest'
-#         with:
-#           ssm_parameter: 'REDIS_TYPE'
-#           env_variable_name: 'REDIS_TYPE'
+      - name: Get secrets
+        id: secrets
+        run: |
+          echo "Using Redis at host $REDIS_HOST and port $REDIS_PORT"
+          echo "::set-output name=REDIS_PASSWORD::${REDIS_PASSWORD}"
+          echo "::set-output name=REDIS_PORT::${REDIS_PORT}"
+          echo "::set-output name=REDIS_HOST::${REDIS_HOST}"
+          echo "::set-output name=REDIS_TYPE::${REDIS_TYPE}"
 
-#       - name: Get secrets
-#         id: secrets
-#         run: |
-#           echo "Using Redis at host $REDIS_HOST and port $REDIS_PORT"
-#           echo "::set-output name=REDIS_PASSWORD::${REDIS_PASSWORD}"
-#           echo "::set-output name=REDIS_PORT::${REDIS_PORT}"
-#           echo "::set-output name=REDIS_HOST::${REDIS_HOST}"
-#           echo "::set-output name=REDIS_TYPE::${REDIS_TYPE}"
+      - name: Deploy to App Runner Image
+        uses: awslabs/amazon-app-runner-deploy@main
+        env:
+          REDIS_PASSWORD: ${{ env.REDIS_PASSWORD }}
+          REDIS_HOST: ${{ env.REDIS_HOST }}
+          REDIS_PORT: ${{ env.REDIS_PORT }}
+          REDIS_TYPE: ${{ env.REDIS_TYPE }}
+          SERVER_PORT: 80
+          PORT: 80
+          MICROSERVICE_KEY: xxx
+          TRACKING_WEBHOOK: 'https://9nukpegt2c.execute-api.us-east-1.amazonaws.com'
+          HOSTNAME: 0.0.0.0
+          MIN_NON_TEXT_ITEMS: 500
+          MAX_CAPACITY: 1000
 
-#       - name: Deploy to App Runner Image
-#         uses: awslabs/amazon-app-runner-deploy@main
-#         env:
-#           REDIS_PASSWORD: ${{ env.REDIS_PASSWORD }}
-#           REDIS_HOST: ${{ env.REDIS_HOST }}
-#           REDIS_PORT: ${{ env.REDIS_PORT }}
-#           REDIS_TYPE: ${{ env.REDIS_TYPE }}
-#           SERVER_PORT: 80
-#           PORT: 80
-#           MICROSERVICE_KEY: xxx
-#           TRACKING_WEBHOOK: 'https://9nukpegt2c.execute-api.us-east-1.amazonaws.com'
-#           HOSTNAME: 0.0.0.0
-#           MIN_NON_TEXT_ITEMS: 500
-#           MAX_CAPACITY: 1000
+        with:
+          service: deezy-nostr
+          image: ${{ env.IMAGE_ID }}
+          access-role-arn: arn:aws:iam::729989983411:role/app-runner-service-role
+          region: us-east-1
+          cpu: 0.25
+          memory: 0.5
+          wait-for-service-stability-seconds: 2800
+          # copy-secret-env-vars: |
+          #   REDIS_PASSWORD
+          #   REDIS_HOST
+          #   REDIS_PORT
+          #   REDIS_TYPE
+          copy-env-vars: |
+            PORT
+            MICROSERVICE_KEY
+            TRACKING_WEBHOOK
+            HOSTNAME
+            MIN_NON_TEXT_ITEMS
+            MAX_CAPACITY
+            SERVER_PORT
+            REDIS_PASSWORD
+            REDIS_HOST
+            REDIS_PORT
+            REDIS_TYPE
 
-#         with:
-#           service: deezy-nostr
-#           image: ${{ env.IMAGE_ID }}
-#           access-role-arn: arn:aws:iam::729989983411:role/app-runner-service-role
-#           region: us-east-1
-#           cpu: 0.25
-#           memory: 0.5
-#           wait-for-service-stability-seconds: 2800
-#           # copy-secret-env-vars: |
-#           #   REDIS_PASSWORD
-#           #   REDIS_HOST
-#           #   REDIS_PORT
-#           #   REDIS_TYPE
-#           copy-env-vars: |
-#             PORT
-#             MICROSERVICE_KEY
-#             TRACKING_WEBHOOK
-#             HOSTNAME
-#             MIN_NON_TEXT_ITEMS
-#             MAX_CAPACITY
-#             SERVER_PORT
-#             REDIS_PASSWORD
-#             REDIS_HOST
-#             REDIS_PORT
-#             REDIS_TYPE
-
-#       - name: App Runner URL
-#         run: echo "App Runner URL ${{ steps.deploy-apprunner.outputs.service-url }}"
+      - name: App Runner URL
+        run: echo "App Runner URL ${{ steps.deploy-apprunner.outputs.service-url }}"

@@ -19,6 +19,13 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
+<<<<<<< HEAD
+=======
+      - name: Build the application
+        run: |
+          # Add your build commands here
+          echo "Building the application"
+>>>>>>> 9c3f55e (wip: test pipeline v1.0.88)
       - name: Install copilot
         run: |
           mkdir -p $GITHUB_WORKSPACE/bin
@@ -30,6 +37,7 @@ jobs:
           mv copilot-linux $GITHUB_WORKSPACE/bin/copilot && \
           # add to PATH
           echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
+<<<<<<< HEAD
       - name: Install jq
         run: sudo apt-get install jq
       - name: Check if application exists
@@ -49,6 +57,8 @@ jobs:
         run: |
           # Add your build commands here
           echo "Building the application"
+=======
+>>>>>>> 9c3f55e (wip: test pipeline v1.0.88)
       - name: Deploy the application
         uses: ksivamuthu/aws-copilot-github-action@v0.0.1
         with:
