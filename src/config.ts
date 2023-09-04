@@ -33,7 +33,7 @@ export const config: Config = {
   redisPort: env.get('REDIS_PORT').asIntPositive() || 19678,
   redisPassword: env.get('REDIS_PASSWORD').asString() || '',
   microserviceKey: env.get('MICROSERVICE_KEY').asString() || '',
-  trackingWebsite: env.get('TRACKING_WEBSITE').asString() || '',
+  trackingWebsite: env.get('TRACKING_WEBHOOK').asString() || '',
   hostname: env.get('HOSTNAME').asString() || '0.0.0.0',
   port: env.get('PORT').asIntPositive() || 3000,
 };

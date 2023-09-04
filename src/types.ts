@@ -29,15 +29,13 @@ export type ValidKeys = 'sorted_by_created_at_all';
 export type ValidOrders = 'ASC' | 'DESC';
 
 export interface RawNostrEvent {
-  sig: string;
-  inscriptionId: string;
-  kind: number;
+  content: string;
   created_at: number;
   id: string;
-  value: number;
-  content: string;
+  kind: number;
   pubkey: string;
-  tags: [string, string][];
+  sig: string;
+  tags: string[][];
 }
 
 export type Auction = {

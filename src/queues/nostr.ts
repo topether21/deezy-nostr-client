@@ -6,6 +6,8 @@ import { Job, Queue, Worker } from 'bullmq';
 import { NosftEvent, RawNostrEvent } from './../types';
 import { addOnSaleItem } from './../cache';
 import { getInscriptionData } from './shared';
+import axios from 'axios';
+import { print } from './../utils';
 
 export const nostrConfig = {
   name: `${config.prefix}Nostr Events`,
@@ -15,11 +17,12 @@ export const nostrQueue = new Queue(nostrConfig.name, {
   connection,
 });
 
-import axios from 'axios';
-
 const notifyTrackerService = async (event: RawNostrEvent) => {
   try {
-    const url = `${process.env.TRACKER_WEBSITE}/inscription/${event.inscriptionId}/refresh`;
+    print(event);
+    const inscriptionIdTag = event.tags.find((tag) => tag[0] === 'i');
+    const inscriptionId = inscriptionIdTag ? inscriptionIdTag[1] : null;
+    const url = `${config.trackingWebsite}/inscription/${inscriptionId}/refresh`;
     console.log('Sending HTTP POST request to', url);
     const { data } = await axios.post(url);
     console.log('Tracker service notified', data);

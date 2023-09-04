@@ -92,7 +92,7 @@ jobs:
           SERVER_PORT: 80
           PORT: 80
           MICROSERVICE_KEY: xxx
-		  TRACKER_WEBHOOK: "https://9nukpegt2c.execute-api.us-east-1.amazonaws.com"
+          TRACKING_WEBHOOK: 'https://9nukpegt2c.execute-api.us-east-1.amazonaws.com'
           HOSTNAME: 0.0.0.0
           MIN_NON_TEXT_ITEMS: 500
           MAX_CAPACITY: 1000
@@ -114,7 +114,7 @@ jobs:
           copy-env-vars: |
             PORT
             MICROSERVICE_KEY
-			TRACKER_WEBHOOK
+            TRACKING_WEBHOOK
             HOSTNAME
             MIN_NON_TEXT_ITEMS
             MAX_CAPACITY

@@ -8,7 +8,7 @@ services:
       - '${PORT}:${PORT}'
     environment:
       MICROSERVICE_KEY: '${MICROSERVICE_KEY}'
-      TRACKER_WEBHOOK: https://9nukpegt2c.execute-api.us-east-1.amazonaws.com
+      TRACKING_WEBHOOK: https://9nukpegt2c.execute-api.us-east-1.amazonaws.com
       HOSTNAME: '${HOSTNAME}'
       PORT: '${PORT}'
       REDIS_HOST: 'redis'
