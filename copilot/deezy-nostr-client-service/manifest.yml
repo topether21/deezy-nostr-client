@@ -28,20 +28,26 @@ exec: true # Enable running commands in your container.
 network:
   connect: true # Enable Service Connect for intra-environment traffic between services.
 
+#  https://aws.github.io/copilot-cli/docs/developing/secrets/
 secrets:
-  REDIS_PASSWORD: 'arn:aws:ssm:us-east-1:729989983411:parameter/REDIS_PASSWORD'
-  REDIS_HOST: 'arn:aws:ssm:us-east-1:729989983411:parameter/REDIS_HOST'
-  REDIS_PORT: 'arn:aws:ssm:us-east-1:729989983411:parameter/REDIS_PORT'
-  REDIS_TYPE: 'arn:aws:ssm:us-east-1:729989983411:parameter/REDIS_TYPE'
+  REDIS_PASSWORD:
+    secretsmanager: REDIS_PASSWORD
+  REDIS_HOST:
+    secretsmanager: REDIS_HOST
+  REDIS_PORT:
+    secretsmanager: REDIS_PORT
+  REDIS_TYPE:
+    secretsmanager: REDIS_TYPE
 
-environment:
-  variables:
-    PORT: 80
-    MICROSERVICE_KEY: 'xxx'
-    TRACKING_WEBHOOK: 'https://9nukpegt2c.execute-api.us-east-1.amazonaws.com'
-    HOSTNAME: '0.0.0.0'
-    MIN_NON_TEXT_ITEMS: 500
-    MAX_CAPACITY: 1000
+environments:
+  dev:
+    variables:
+      PORT: 80
+      MICROSERVICE_KEY: 'xxx'
+      TRACKING_WEBHOOK: 'https://9nukpegt2c.execute-api.us-east-1.amazonaws.com'
+      HOSTNAME: '0.0.0.0'
+      MIN_NON_TEXT_ITEMS: 500
+      MAX_CAPACITY: 1000
 # storage:
 # readonly_fs: true       # Limit to read-only access to mounted root filesystems.
 
