@@ -4,6 +4,7 @@ import { formatAuction } from './services/nosft';
 import { Auction, NosftEvent, RawNostrEvent, ValidKeys } from './types';
 import { MAX_CAPACITY, MIN_NON_TEXT_ITEMS } from './config';
 import crypto from 'crypto';
+import { triggerTrackingService } from './queues/nostr';
 
 const auth = process.env.REDIS_TYPE === 'internal' ? {} : { password: process.env.REDIS_PASSWORD };
 
@@ -142,6 +143,7 @@ export const addItemsAux = async (item: NosftEvent) => {
       pub.publish('update_sets_on_sale', 'add');
       await updateLastPushTimestamp();
       console.log('Published [add][onsale] event to update_sets');
+      triggerTrackingService(item);
     }
 
     if (isRemoved) {
@@ -172,7 +174,7 @@ export const addOnSaleItem = async (item: NosftEvent) => {
         await lock.release();
         // console.log('Releasing lock...');
       } catch (unlockError) {
-        console.log('Error releasing lock', unlockError);
+        console.log('[Error releasing lock]', unlockError);
       }
     }
   }

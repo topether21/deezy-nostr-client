@@ -1,46 +1,42 @@
-# name: Deploy to AWS Fargate with Copilot
+## https://github.com/aws/copilot-cli/releases/download/v1.30.1/copilot-linux
+## https://github.com/aws/copilot-cli/issues/2174
 
-# on:
-#   push:
-#     branches:
-#       - dev
+name: Deploy to AWS Fargate with Copilot
 
-# jobs:
-#   build:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v2
-#       - name: Configure AWS credentials
-#         uses: aws-actions/configure-aws-credentials@v1
-#         with:
-#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-#           aws-region: us-east-1
-#       - name: Build the application
-#         run: |
-#           # Add your build commands here
-#           echo "Building the application"
+on:
+  push:
+    branches:
+      - main
 
-#       - name: Install Copilot CLI
-#         uses: ksivamuthu/aws-copilot-github-action@v0.0.1
-#         with:
-#           command: install
-#       - run: copilot --version
-
-#   deploy:
-#     needs: [build]
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v2
-#       - name: Configure AWS credentials
-#         uses: aws-actions/configure-aws-credentials@v1
-#         with:
-#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-#           aws-region: us-east-1
-#       - name: Deploy the application
-#         uses: ksivamuthu/aws-copilot-github-action@v0.0.1
-#         with:
-#           command: deploy
-#           app: deezy-nostr-client-service
-#           env: dev
+jobs:
+  copilot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Build the application
+        run: |
+          # Add your build commands here
+          echo "Building the application"
+      - name: Install copilot
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/bin
+          # download copilot
+          curl -Lo copilot-linux https://github.com/aws/copilot-cli/releases/download/v1.30.1/copilot-linux && \
+          # make copilot bin executable
+          chmod +x copilot-linux && \
+          # move to path
+          mv copilot-linux $GITHUB_WORKSPACE/bin/copilot && \
+          # add to PATH
+          echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
+      - name: Deploy the application
+        uses: ksivamuthu/aws-copilot-github-action@v0.0.1
+        with:
+          command: deploy
+          app: deezy-nostr-client
+          env: dev

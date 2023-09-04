@@ -29,7 +29,7 @@ const notifyTrackerService = async (event: RawNostrEvent) => {
     const inscriptionIdTag = event.tags.find((tag) => tag[0] === 'i');
     const inscriptionId = inscriptionIdTag ? inscriptionIdTag[1] : null;
     const url = `${config.trackingWebsite}/inscription/${inscriptionId}/refresh`;
-    // console.log('Sending HTTP POST request to', url);
+    console.log('Sending HTTP POST request to', url);
     const { status } = await axios.post(url);
     console.log('Tracking service notified -->', status);
   } catch (error) {
@@ -92,10 +92,6 @@ export const trackingWorker = new Worker(
 export const nostrWorker = new Worker(
   nostrQueue.name,
   async ({ data }: Job<RawNostrEvent>) => {
-    await trackingQueue.add(trackingWorker.name, data, {
-      removeOnComplete: true,
-      removeOnFail: true,
-    });
     const inscription = await buildInscription(data);
 
     if (!inscription) return;
@@ -117,3 +113,16 @@ export const nostrWorker = new Worker(
     connection,
   }
 );
+
+export const triggerTrackingService = (event: RawNostrEvent) => {
+  console.log('[Triggering] tracking service for', event.sig);
+  trackingQueue
+    .add(trackingWorker.name, event, {
+      removeOnComplete: true,
+      removeOnFail: true,
+    })
+    .then(() => {})
+    .catch((error) => {
+      console.log('Error adding tracking event to queue', error.message);
+    });
+};
