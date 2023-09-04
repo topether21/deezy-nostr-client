@@ -29,7 +29,7 @@ const notifyTrackerService = async (event: RawNostrEvent) => {
     const inscriptionIdTag = event.tags.find((tag) => tag[0] === 'i');
     const inscriptionId = inscriptionIdTag ? inscriptionIdTag[1] : null;
     const url = `${config.trackingWebsite}/inscription/${inscriptionId}/refresh`;
-    // console.log('Sending HTTP POST request to', url);
+    console.log('Sending HTTP POST request to', url);
     const { status } = await axios.post(url);
     console.log('Tracking service notified -->', status);
   } catch (error) {
