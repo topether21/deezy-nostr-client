@@ -14,7 +14,6 @@ http:
   # You can specify a custom health check path. The default is "/".
   # healthcheck: '/'
 
-# Configuration for your containers and service.
 image:
   # Docker build arguments. For additional overrides: https://aws.github.io/copilot-cli/docs/manifest/lb-web-service/#image-build
   build: Dockerfile
@@ -30,38 +29,24 @@ network:
 
 #  https://aws.github.io/copilot-cli/docs/developing/secrets/
 secrets:
-  REDIS_PASSWORD:
-    secretsmanager: REDIS_PASSWORD
-  REDIS_HOST:
-    secretsmanager: REDIS_HOST
-  REDIS_PORT:
-    secretsmanager: REDIS_PORT
-  REDIS_TYPE:
-    secretsmanager: REDIS_TYPE
+  REDIS_PASSWORD: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/REDIS_PASSWORD
+
+variables: # Pass environment variables as key value pairs.
+  PORT: 80
+  MICROSERVICE_KEY: 'xxx'
+  TRACKING_WEBHOOK: 'https://9nukpegt2c.execute-api.us-east-1.amazonaws.com'
+  HOSTNAME: '0.0.0.0'
+  MIN_NON_TEXT_ITEMS: 500
+  MAX_CAPACITY: 1000
+  REDIS_HOST: 'redis-10272.c124.us-central1-1.gce.cloud.redislabs.com'
+  REDIS_PORT: 10272
+  REDIS_TYPE: 'cloud'
 
 environments:
   dev:
-    variables:
-      PORT: 80
-      MICROSERVICE_KEY: 'xxx'
-      TRACKING_WEBHOOK: 'https://9nukpegt2c.execute-api.us-east-1.amazonaws.com'
-      HOSTNAME: '0.0.0.0'
-      MIN_NON_TEXT_ITEMS: 500
-      MAX_CAPACITY: 1000
+    count: 1 # Number of tasks to run for the "dev" environment.
+    deployment: # The deployment strategy for the "dev" environment.
+      rolling: 'recreate' # Stops existing tasks before new ones are started for faster deployments.
+
 # storage:
 # readonly_fs: true       # Limit to read-only access to mounted root filesystems.
-
-# Optional fields for more advanced use-cases.
-#
-#variables:                    # Pass environment variables as key value pairs.
-#  LOG_LEVEL: info
-
-#secrets:                      # Pass secrets from AWS Systems Manager (SSM) Parameter Store.
-#  GITHUB_TOKEN: GITHUB_TOKEN  # The key is the name of the environment variable, the value is the name of the SSM parameter.
-
-# You can override any of the values defined above by environment.
-#environments:
-#  test:
-#    count: 2               # Number of tasks to run for the "test" environment.
-#    deployment:            # The deployment strategy for the "test" environment.
-#       rolling: 'recreate' # Stops existing tasks before new ones are started for faster deployments.
