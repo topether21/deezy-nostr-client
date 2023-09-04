@@ -1,4 +1,4 @@
-name: Deploy to AWS with Copilot
+name: Deploy to AWS Fargate with Copilot
 
 on:
   push:
@@ -6,26 +6,41 @@ on:
       - dev
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
+      - uses: actions/checkout@v2
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Build the application
+        run: |
+          # Add your build commands here
+          echo "Building the application"
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
+      - name: Install Copilot CLI
+        uses: ksivamuthu/aws-copilot-github-action@v0.0.1
+        with:
+          command: install
+      - run: copilot --version
 
-    - name: Install Copilot CLI
-      run: |
-        curl -Lo copilot https://github.com/aws/copilot-cli/releases/latest/download/copilot-linux
-        chmod +x copilot
-        sudo mv copilot /usr/local/bin/copilot
-
-    - name: Deploy with Copilot
-      run: copilot svc deploy --name deezy-nostr-client-service --env dev
-
+  deploy:
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Deploy the application
+        uses: ksivamuthu/aws-copilot-github-action@v0.0.1
+        with:
+          command: deploy
+          app: deezy-nostr-client-service
+          env: dev
