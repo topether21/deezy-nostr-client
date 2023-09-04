@@ -21,6 +21,7 @@ export interface Config {
   redisHost: string;
   redisPort: number;
   redisPassword: string;
+  trackingWebsite: string;
 }
 
 export const config: Config = {
@@ -32,6 +33,7 @@ export const config: Config = {
   redisPort: env.get('REDIS_PORT').asIntPositive() || 19678,
   redisPassword: env.get('REDIS_PASSWORD').asString() || '',
   microserviceKey: env.get('MICROSERVICE_KEY').asString() || '',
+  trackingWebsite: env.get('TRACKING_WEBHOOK').asString() || '',
   hostname: env.get('HOSTNAME').asString() || '0.0.0.0',
   port: env.get('PORT').asIntPositive() || 3000,
 };

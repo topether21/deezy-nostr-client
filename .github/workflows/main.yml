@@ -1,49 +1,46 @@
-name: Deploy to AWS App Runner
+# name: Deploy to AWS Fargate with Copilot
 
-on:
-  push:
-    branches:
-      - main # Set a branch to deploy from
+# on:
+#   push:
+#     branches:
+#       - dev
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
+# jobs:
+#   build:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v2
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v1
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: us-east-1
+#       - name: Build the application
+#         run: |
+#           # Add your build commands here
+#           echo "Building the application"
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+#       - name: Install Copilot CLI
+#         uses: ksivamuthu/aws-copilot-github-action@v0.0.1
+#         with:
+#           command: install
+#       - run: copilot --version
 
-      # Setup AWS CLI
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
-      # Upload to S3
-      - name: Upload to S3
-        run: |
-          aws s3 mb s3://deezy-nostr-client/ || echo "Bucket exists"
-          aws s3 cp apprunner-config.yml s3://deezy-nostr-client/
-
-      # Create ECR repository if it doesn't exist
-      - name: Create ECR repository
-        run: |
-          aws ecr describe-repositories --repository-names deezy-nostr-client || aws ecr create-repository --repository-name deezy-nostr-client
-
-      # Build and push Docker image to ECR
-      - name: Build and push Docker image
-        run: |
-          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 729989983411.dkr.ecr.us-east-1.amazonaws.com
-          docker build -t deezy-nostr-client .
-          docker tag deezy-nostr-client:latest 729989983411.dkr.ecr.us-east-1.amazonaws.com/deezy-nostr-client:latest
-          docker push 729989983411.dkr.ecr.us-east-1.amazonaws.com/deezy-nostr-client:latest
-
-      # Deploy to App Runner with environment variables
-      - name: Deploy to AWS App Runner
-        run: |
-          aws apprunner create-service \
-            --service-name deezy-nostr \
-            --source-configuration "RepositoryUrl=729989983411.dkr.ecr.us-east-1.amazonaws.com/deezy-nostr-client,ImageTag=latest" \
-            --instance-configuration file://instance-config.json
+#   deploy:
+#     needs: [build]
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v2
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v1
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: us-east-1
+#       - name: Deploy the application
+#         uses: ksivamuthu/aws-copilot-github-action@v0.0.1
+#         with:
+#           command: deploy
+#           app: deezy-nostr-client-service
+#           env: dev

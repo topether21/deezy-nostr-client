@@ -70,7 +70,6 @@ router.get('/api/v1/home', async (_req: Request, res: Response) => {
   }
 });
 
-// INTERNAL USE ONLY
 router.get('/api/v1/marketplace/clean', async (_req: Request, res: Response) => {
   try {
     const marketplace = await clearAllLists();
@@ -84,7 +83,6 @@ router.get('/api/v1/marketplace/clean', async (_req: Request, res: Response) => 
   }
 });
 
-// INTERNAL USE ONLY
 router.get('/api/v1/reboot', async (_req: Request, res: Response) => {
   try {
     await clearAllLists();
@@ -98,7 +96,6 @@ router.get('/api/v1/reboot', async (_req: Request, res: Response) => {
   }
 });
 
-// INTERNAL USE ONLY
 router.get('/api/v1/auctions/sync', async (_req: Request, res: Response) => {
   try {
     await syncAuctions();
