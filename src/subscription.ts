@@ -57,7 +57,7 @@ export const onSaleCron = async () => {
       console.error('[error]', (error as Error).message);
     }
   };
-  cron.schedule('0 * * * * *', cronJob); // each minute
+  cron.schedule('*/5 * * * *', cronJob); // each 5 minutes
 };
 
 export const initCache = async () => {
