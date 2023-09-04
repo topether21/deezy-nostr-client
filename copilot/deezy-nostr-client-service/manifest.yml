@@ -1,6 +1,8 @@
 # The manifest for the "deezy-nostr-client-service" service.
 # Read the full specification for the "Load Balanced Web Service" type at:
 #  https://aws.github.io/copilot-cli/docs/manifest/lb-web-service/
+#  https://aws.github.io/copilot-cli/docs/developing/domain/
+#  https://towardsthecloud.com/aws-copilot-cli-deploy-containers-tutorial
 
 # Your service name will be used in naming your resources like log groups, ECS services, etc.
 name: deezy-nostr-client-service

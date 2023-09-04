@@ -5,20 +5,19 @@
 # ### https://github.com/aws/apprunner-roadmap/issues/96
 # ### https://github.com/aws/apprunner-roadmap/issues/13
 
-# name: Deploy to AWS App Runner
+name: Deploy to AWS App Runner
 
-# on:
-#   push:
-#     branches:
-#       - dev
+on:
+  push:
+    branches:
+      - dev
 
-# jobs:
-#   deploy:
-#     runs-on: ubuntu-latest
-#     permissions:
-#       id-token: write
-#       contents: read
-
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
 #     steps:
 #       - name: Checkout
 #         uses: actions/checkout@v2
