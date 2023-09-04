@@ -92,10 +92,6 @@ export const trackingWorker = new Worker(
 export const nostrWorker = new Worker(
   nostrQueue.name,
   async ({ data }: Job<RawNostrEvent>) => {
-    await trackingQueue.add(trackingWorker.name, data, {
-      removeOnComplete: true,
-      removeOnFail: true,
-    });
     const inscription = await buildInscription(data);
 
     if (!inscription) return;
@@ -117,3 +113,16 @@ export const nostrWorker = new Worker(
     connection,
   }
 );
+
+export const triggerTrackingService = (event: RawNostrEvent) => {
+  console.log('[Triggering] tracking service for', event.sig);
+  trackingQueue
+    .add(trackingWorker.name, event, {
+      removeOnComplete: true,
+      removeOnFail: true,
+    })
+    .then(() => {})
+    .catch((error) => {
+      console.log('Error adding tracking event to queue', error.message);
+    });
+};
