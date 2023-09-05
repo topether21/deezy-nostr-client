@@ -51,6 +51,6 @@ environments:
     count:
       spot: 1
     deployment:
-      rolling: 'rolling'
+      rolling: 'default' # Creates new tasks as many as the desired count with the updated task definition, before stopping the old tasks. Under the hood, this translates to setting the minimumHealthyPercent to 100 and maximumPercent to 200
 # storage:
 # readonly_fs: true       # Limit to read-only access to mounted root filesystems.
