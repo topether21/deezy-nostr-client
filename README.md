@@ -105,7 +105,7 @@ pnpm run test
 ## AWS Copilote CLI
 
 ```
-copilot app init --domain <yourdomain>
+copilot app init # if you want a custom domain use `--domain <yourdomain>`
 copilot init
 # Load Balanced Web Service, deezy-nostr-client-service, Would you like to deploy an environment? Y
 # Environment name: dev
