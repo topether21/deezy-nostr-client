@@ -39,7 +39,7 @@ variables: # Pass environment variables as key value pairs.
   TRACKING_WEBHOOK: 'https://9nukpegt2c.execute-api.us-east-1.amazonaws.com'
   HOSTNAME: '0.0.0.0'
   MIN_NON_TEXT_ITEMS: 500
-  MAX_CAPACITY: 1000
+  MAX_CAPACITY: 600
   REDIS_HOST: 'redis-10272.c124.us-central1-1.gce.cloud.redislabs.com'
   REDIS_PORT: 10272
   REDIS_TYPE: 'cloud'
