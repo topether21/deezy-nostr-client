@@ -48,9 +48,8 @@ variables: # Pass environment variables as key value pairs.
 
 environments:
   dev:
-    count: 1 # Number of tasks to run for the "dev" environment.
-    deployment: # The deployment strategy for the "dev" environment.
-      rolling: 'recreate' # Stops existing tasks before new ones are started for faster deployments.
-
+    count: 1
+    deployment:
+      rolling: 'default'
 # storage:
 # readonly_fs: true       # Limit to read-only access to mounted root filesystems.
