@@ -174,7 +174,7 @@ export const addOnSaleItem = async (item: NosftEvent) => {
         await lock.release();
         // console.log('Releasing lock...');
       } catch (unlockError) {
-        console.log('Error releasing lock', unlockError);
+        console.log('[Error releasing lock]', unlockError);
       }
     }
   }
