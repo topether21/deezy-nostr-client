@@ -3,6 +3,7 @@
 #  https://aws.github.io/copilot-cli/docs/manifest/lb-web-service/
 #  https://aws.github.io/copilot-cli/docs/developing/domain/
 #  https://towardsthecloud.com/aws-copilot-cli-deploy-containers-tutorial
+#  https://aws.github.io/copilot-cli/blogs/release-v121/#cloudfront-with-https
 
 # Your service name will be used in naming your resources like log groups, ECS services, etc.
 name: deezy-nostr-client-service
@@ -16,6 +17,7 @@ http:
   # You can specify a custom health check path. The default is "/".
   # healthcheck: '/'
 
+platform: linux/arm64
 image:
   # Docker build arguments. For additional overrides: https://aws.github.io/copilot-cli/docs/manifest/lb-web-service/#image-build
   build: Dockerfile
