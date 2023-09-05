@@ -102,6 +102,17 @@ The service includes a suite of tests that can be run using the following comman
 pnpm run test
 ```
 
+## AWS Copilote CLI
+
+```
+copilot app init --domain <yourdomain>
+copilot init
+# Load Balanced Web Service, deezy-nostr-client-service, Would you like to deploy an environment? Y
+# Environment name: dev
+copilot secret init
+copilot deploy
+```
+
 ## Contributing
 
 Contributions are welcome. Please make sure to update tests as appropriate.

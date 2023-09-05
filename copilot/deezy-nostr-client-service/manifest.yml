@@ -51,6 +51,6 @@ environments:
     count:
       spot: 1
     deployment:
-      rolling: 'default'
+      rolling: 'rolling'
 # storage:
 # readonly_fs: true       # Limit to read-only access to mounted root filesystems.
