@@ -11,3 +11,4 @@ docker/data
 .env
 
 labs/
+.DS_Store

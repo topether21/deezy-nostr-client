@@ -6,6 +6,8 @@ import { isTextInscription } from './utils';
 import { initCache } from './subscription';
 import { syncAuctions } from './queues/shared';
 
+const getInscriptionsForSale = require('./usecases/getInscriptionsForSale');
+
 const router: Router = express.Router();
 
 router.get('/api/v1/marketplace', async (req: Request, res: Response) => {
@@ -108,6 +110,11 @@ router.get('/api/v1/auctions/sync', async (_req: Request, res: Response) => {
     console.error('[/api/v1/auctions/sync][error]', e);
     res.sendStatus(500);
   }
+});
+
+router.get('/api/v1/inscriptions-for-sale', async (_, res) => {
+  const inscriptions = await getInscriptionsForSale();
+  res.json(inscriptions);
 });
 
 export default router;
