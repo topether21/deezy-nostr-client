@@ -75,7 +75,7 @@ export const onSoldNotTextItemsCron = async () => {
       console.error('Error in validateItems', error);
     } finally {
       console.timeEnd('Validation Time');
-      setTimeout(validateAndSetNext, 1000);
+      setTimeout(validateAndSetNext, 5000);
     }
   };
   validateAndSetNext();
@@ -89,7 +89,7 @@ export const onSoldTextItemsCron = async () => {
         isTextInscription(item.content_type)
       );
       console.log('Starting validation [TEXT] job');
-      await validateItems(items, 5, 'TEXT');
+      await validateItems(items, 1, 'TEXT');
       console.log('Completed validation job [TEXT]');
     } catch (error) {
       console.error('Error in validateItems for Text Items', error);

@@ -36,9 +36,18 @@ const sendMessageToChannel = async (io: Server, channel: OfferChannel, operation
     io.to('onAuction:10').emit('update', topAuctionsPayload);
     io.to('onAuction').emit('update', auctionsPayload);
   } else if (isSaleChannel(channel)) {
-    const topSalesNoText = data.filter((item) => !isTextInscription(item.content_type)).slice(0, 10);
+    const auctions = await fetchTopAuctionItems();
+
+    const marketplaceWithAuctionFlag = data.map((item) => {
+      const auction = auctions.some((auction) => auction.sig === item.sig);
+      return { ...item, auction };
+    });
+
+    const topSalesNoText = marketplaceWithAuctionFlag
+      .filter((item) => !isTextInscription(item.content_type))
+      .slice(0, 10);
     const topSalesPayload: UpdatePayload = { channel: 'onSale:10', payload: topSalesNoText, operation };
-    const salesPayload: UpdatePayload = { channel: 'onSale', payload: data, operation };
+    const salesPayload: UpdatePayload = { channel: 'onSale', payload: marketplaceWithAuctionFlag, operation };
 
     io.to('onSale:10').emit('update', topSalesPayload);
     io.to('onSale').emit('update', salesPayload);

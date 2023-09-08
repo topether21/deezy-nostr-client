@@ -21,7 +21,12 @@ router.get('/api/v1/marketplace', async (req: Request, res: Response) => {
       });
     }
 
+    const auctions = await fetchTopAuctionItems();
     const marketplace = await fetchTopMarketplaceItems(filter_by, order, size);
+    const marketplaceWithAuctionFlag = marketplace.map((item) => {
+      const auction = auctions.some((auction) => auction.sig === item.sig);
+      return { ...item, auction };
+    });
 
     res.send({
       status: 'ok',
@@ -32,7 +37,7 @@ router.get('/api/v1/marketplace', async (req: Request, res: Response) => {
       },
       size: marketplace.length,
       maxQueueSize: MIN_NON_TEXT_ITEMS,
-      marketplace,
+      marketplace: marketplaceWithAuctionFlag,
     });
   } catch (e) {
     console.error('[/api/v1/marketplace][error]', e);
