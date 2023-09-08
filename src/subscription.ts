@@ -4,7 +4,6 @@ import { nostrConfig, nostrQueue } from './queues/nostr';
 import cron from 'node-cron';
 import { fetchTopMarketplaceItems, isQueueActive, validateItems } from './cache';
 import { MIN_NON_TEXT_ITEMS } from './config';
-import { syncAuctions } from './queues/shared';
 import { isTextInscription } from './utils';
 
 type Subscription = {
@@ -106,10 +105,12 @@ export const initCache = async () => {
     cleanupSubscriptions();
     const { cleanup } = subscribeToOnSale(MIN_NON_TEXT_ITEMS);
     currentSubscriptions.push({ cleanup });
-    await syncAuctions();
     await onSaleCron();
-    await onSoldNotTextItemsCron();
-    await onSoldTextItemsCron();
+
+    // We are not using this anymore
+    // await syncAuctions();
+    // await onSoldNotTextItemsCron();
+    // await onSoldTextItemsCron();
   } catch (error) {
     console.error(error);
   }
