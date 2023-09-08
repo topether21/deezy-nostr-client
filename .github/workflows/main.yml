@@ -19,13 +19,10 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-<<<<<<< HEAD
-=======
       - name: Build the application
         run: |
           # Add your build commands here
           echo "Building the application"
->>>>>>> 9c3f55e (wip: test pipeline v1.0.88)
       - name: Install copilot
         run: |
           mkdir -p $GITHUB_WORKSPACE/bin
@@ -37,28 +34,6 @@ jobs:
           mv copilot-linux $GITHUB_WORKSPACE/bin/copilot && \
           # add to PATH
           echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
-<<<<<<< HEAD
-      - name: Install jq
-        run: sudo apt-get install jq
-      - name: Check if application exists
-        id: check_app
-        run: |
-          if copilot app show --json | jq -e .name > /dev/null 2>&1; then
-            echo "::set-output name=exists::true"
-          else
-            echo "::set-output name=exists::false"
-          fi
-      - name: Initialize application
-        if: steps.check_app.outputs.exists == 'false'
-        run: |
-          copilot app init deezy-nostr-client
-          copilot init --app deezy-nostr-client --type "Load Balanced Web Service" --name deezy-nostr-client-service --dockerfile "./Dockerfile" --deploy
-      - name: Build the application
-        run: |
-          # Add your build commands here
-          echo "Building the application"
-=======
->>>>>>> 9c3f55e (wip: test pipeline v1.0.88)
       - name: Deploy the application
         uses: ksivamuthu/aws-copilot-github-action@v0.0.1
         with:
