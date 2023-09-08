@@ -2,9 +2,10 @@ import { nostrPool } from './nostr-relay';
 
 import { nostrConfig, nostrQueue } from './queues/nostr';
 import cron from 'node-cron';
-import { isQueueActive } from './cache';
+import { fetchTopMarketplaceItems, isQueueActive, validateItems } from './cache';
 import { MIN_NON_TEXT_ITEMS } from './config';
 import { syncAuctions } from './queues/shared';
+import { isTextInscription } from './utils';
 
 type Subscription = {
   cleanup: () => void;
@@ -60,6 +61,46 @@ export const onSaleCron = async () => {
   cron.schedule('*/5 * * * *', cronJob); // each 5 minutes
 };
 
+export const onSoldNotTextItemsCron = async () => {
+  const validateAndSetNext = async () => {
+    console.time('Validation Time');
+    try {
+      const items = (await fetchTopMarketplaceItems('sorted_by_created_at_all')).filter(
+        (item) => !isTextInscription(item.content_type)
+      );
+      console.log('Starting validation [NO TEXT] job');
+      await validateItems(items, 10, 'IMAGE/NO-TEXT');
+      console.log('Completed validation job [IMAGE/NO-TEXT]');
+    } catch (error) {
+      console.error('Error in validateItems', error);
+    } finally {
+      console.timeEnd('Validation Time');
+      setTimeout(validateAndSetNext, 1000);
+    }
+  };
+  validateAndSetNext();
+};
+
+export const onSoldTextItemsCron = async () => {
+  const validateAndSetNext = async () => {
+    console.time('Validation Time for Text Items');
+    try {
+      const items = (await fetchTopMarketplaceItems('sorted_by_created_at_all')).filter((item) =>
+        isTextInscription(item.content_type)
+      );
+      console.log('Starting validation [TEXT] job');
+      await validateItems(items, 5, 'TEXT');
+      console.log('Completed validation job [TEXT]');
+    } catch (error) {
+      console.error('Error in validateItems for Text Items', error);
+    } finally {
+      console.timeEnd('Validation Time for Text Items');
+      setTimeout(validateAndSetNext, 1000);
+    }
+  };
+  validateAndSetNext();
+};
+
 export const initCache = async () => {
   try {
     cleanupSubscriptions();
@@ -67,6 +108,8 @@ export const initCache = async () => {
     currentSubscriptions.push({ cleanup });
     await syncAuctions();
     await onSaleCron();
+    await onSoldNotTextItemsCron();
+    await onSoldTextItemsCron();
   } catch (error) {
     console.error(error);
   }

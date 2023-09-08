@@ -1,6 +1,6 @@
 {
   "name": "deezy-nostr-client",
-  "version": "1.0.88",
+  "version": "1.0.89",
   "description": "",
   "private": true,
   "main": "./dist/index.js",

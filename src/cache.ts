@@ -1,8 +1,8 @@
 import Redis from 'ioredis';
 import Redlock from 'redlock';
-import { formatAuction } from './services/nosft';
+import { formatAuction, isSpent } from './services/nosft';
 import { Auction, NosftEvent, RawNostrEvent, ValidKeys } from './types';
-import { MAX_CAPACITY, MIN_NON_TEXT_ITEMS } from './config';
+import { MAX_CAPACITY } from './config';
 import crypto from 'crypto';
 import { triggerTrackingService } from './queues/nostr';
 
@@ -157,6 +157,28 @@ export const addItemsAux = async (item: NosftEvent) => {
   }
 };
 
+export const removeItem = async (item: NosftEvent) => {
+  const lockKey = 'removeItemLock';
+  let lock;
+  try {
+    lock = await redlock.acquire([lockKey], 5000);
+    await removeItemAux(item);
+  } catch (error) {
+    console.log('Could not acquire lock', (error as Error).message);
+  } finally {
+    // Release the lock.
+    if (lock) {
+      try {
+        // @ts-ignore
+        await lock.release();
+        console.log('Releasing lock...');
+      } catch (unlockError) {
+        console.log('[Error releasing lock]', unlockError);
+      }
+    }
+  }
+};
+
 export const addOnSaleItem = async (item: NosftEvent) => {
   const lockKey = 'addOnSaleItemLock';
   let lock;
@@ -182,21 +204,38 @@ export const addOnSaleItem = async (item: NosftEvent) => {
 
 export const validOrders = ['ASC', 'DESC'];
 
-export const keys = ['sorted_by_created_at_all', 'sorted_by_created_at_no_text'];
+export const keys = ['sorted_by_created_at_all'];
 
-export const removeItem = async (item: NosftEvent) => {
-  for (const key of keys) {
-    await db.zrem(key, JSON.stringify(item));
-    await db.hdel(key + '_hash', item.output);
-  }
+export const removeItemAux = async (item: NosftEvent) => {
+  try {
+    const key = 'sorted_by_created_at_all';
 
-  const nonTextCount = await db.zcount('sorted_by_created_at_no_text', '-inf', '+inf');
-  if (nonTextCount < MIN_NON_TEXT_ITEMS) {
-    loadMoreItems();
+    const existingItemTimestamp = await db.hget(key + '_hash', item.output);
+
+    if (!existingItemTimestamp) {
+      // The item doesn't exist, so skip
+      return;
+    }
+
+    const multi = db.multi();
+
+    // Remove the existing item
+    const existingItems = await db.zrangebyscore(key, existingItemTimestamp, existingItemTimestamp);
+    multi.zrem(key, existingItems[0]).hdel(key + '_hash', item.output);
+
+    await multi.exec();
+
+    // Publish events for the removal
+    pub.publish('update_sets_on_sale', 'remove');
+    await updateLastPushTimestamp();
+    console.log('Published [remove][onsale] event to update_sets');
+  } catch (err) {
+    console.error(err);
+    throw new Error('Error removing item from cache');
   }
 };
 
-const loadMoreItems = () => {
+export const loadMoreItems = () => {
   // Implement your logic here to add more non-text items
   // console.log('Fetching more non-text items...');
 };
@@ -257,6 +296,71 @@ export const fetchTopAuctionItems = async (order: 'ASC' | 'DESC' = 'DESC', limit
   }
 
   return items.map((item: string) => JSON.parse(item));
+};
+
+type IsSpentResult = {
+  spent: boolean | null;
+  error: Error | null;
+};
+
+const safelyCheckIsSpent = async (item: NosftEvent): Promise<IsSpentResult> => {
+  try {
+    const result = await isSpent(item);
+    return { spent: result.spent, error: null };
+  } catch (error) {
+    console.error(`Error checking item ${item.output}:`, (error as Error).message);
+    return { spent: null, error: error as Error };
+  }
+};
+
+// Function to validate a batch of items
+const validateItemBatch = async (itemBatch: NosftEvent[], itemType: string): Promise<string[]> => {
+  const soldItems: string[] = [];
+  const isSpentResults: Promise<IsSpentResult>[] = itemBatch.map(safelyCheckIsSpent);
+  const resolvedResults = await Promise.all(isSpentResults);
+
+  for (let i = 0; i < itemBatch.length; i++) {
+    const item = itemBatch[i];
+    const result = resolvedResults[i];
+
+    console.log(`Validating ${itemType} with output: ${item.output}`);
+
+    if (result.error) {
+      continue;
+    }
+
+    if (result.spent) {
+      console.log(`${itemType} with output: ${item.output} is spent.`);
+      await removeItem(item);
+      soldItems.push(item.output);
+    }
+  }
+
+  return soldItems;
+};
+
+export const validateItems = async (allItems: NosftEvent[], batchSize: number, itemType: string): Promise<string[]> => {
+  const soldItems: string[] = [];
+
+  try {
+    const itemBatches: any[][] = [];
+
+    // Create batches based on the specified batch size
+    for (let i = 0; i < allItems.length; i += batchSize) {
+      const batch = allItems.slice(i, i + batchSize);
+      itemBatches.push(batch);
+    }
+
+    // Validate each batch and collect sold items
+    for (const itemBatch of itemBatches) {
+      const batchSoldItems = await validateItemBatch(itemBatch, itemType);
+      soldItems.push(...batchSoldItems);
+    }
+  } catch (error) {
+    console.error('Error in validateItems', error);
+  }
+
+  return soldItems;
 };
 
 export const clearAllLists = async () => {
